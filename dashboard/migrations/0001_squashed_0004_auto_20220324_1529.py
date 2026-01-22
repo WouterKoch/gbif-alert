@@ -9,7 +9,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     replaces = [
         ("dashboard", "0001_initial"),
         ("dashboard", "0002_alter_observation_species"),

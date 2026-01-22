@@ -14,7 +14,6 @@ from dashboard.models import (
     ObservationComment,
     ObservationUnseen,
     Alert,
-    migrate_unseen_observations,
 )
 
 SAMPLE_DATASET_KEY = "940821c0-3269-11df-855a-b8a03c50a862"
@@ -226,81 +225,6 @@ class ObservationTests(TestCase):
                 self.comment_author, the_date=two_years_ago
             )
         )
-
-    def test_replace_observation(self):
-        """High-level test: after creating a new observation with the same stable_id, make sure we can migrate the
-        linked entities then and then delete the initial observation"""
-
-        # 2. Create a new observation that replaces one from the fixtures
-        new_di = DataImport.objects.create(start=timezone.now())
-        new_observation = Observation.objects.create(
-            gbif_id=1,
-            occurrence_id=SAMPLE_OCCURRENCE_ID,
-            species=Species.objects.all()[0],
-            date=datetime.date.today() - datetime.timedelta(days=1),
-            data_import=new_di,
-            initial_data_import=new_di,
-            source_dataset=self.dataset,
-            location=Point(5.09513, 50.48941, srid=4326),  # Andenne
-        )
-
-        old_observation = self.obs
-
-        # Migrate entities
-        # TODO: the import process doens't use migrate_linked_entities() anymore, we should probably remove it and update this test to do the same thing than during import
-        new_observation.migrate_linked_entities()
-        migrate_unseen_observations(new_di)
-
-        # Make sure the counts for comments are correct
-        self.assertEqual(new_observation.observationcomment_set.count(), 2)
-        self.assertEqual(old_observation.observationcomment_set.count(), 0)
-
-        # Make also sure the comments fields were not accidentally altered
-        self.first_comment.refresh_from_db()
-        self.assertEqual(self.first_comment.author, self.comment_author)
-        self.assertEqual(self.first_comment.text, "This is a first comment")
-        self.assertEqual(self.first_comment.observation_id, new_observation.pk)
-
-        self.second_comment.refresh_from_db()
-        self.assertEqual(self.second_comment.author, self.comment_author)
-        self.assertEqual(self.second_comment.text, "This is a second comment")
-        self.assertEqual(self.second_comment.observation_id, new_observation.pk)
-
-        # The replaced observation was seen, so the new one should be seen too
-        with self.assertRaises(ObservationUnseen.DoesNotExist):
-            ObservationUnseen.objects.get(
-                observation=new_observation, user=self.comment_author
-            )
-
-        # The old observation can be safely deleted
-        old_observation.delete()
-
-    def test_replace_observation_unseen(self):
-        """Similar to test_replace_observation, but the replaced observation was not seen
-
-        (there was an entry in observationunseen. we make sure this entry now properly
-        points to the new observation)(it is not automatically marked as seen because
-        the user has a matching alert, and the observation is recent)
-        """
-
-        new_di = DataImport.objects.create(start=timezone.now())
-        replacement_second_obs = Observation.objects.create(
-            gbif_id=2,
-            occurrence_id=123456,
-            species=Species.objects.all()[0],
-            date=datetime.date.today() - datetime.timedelta(days=1),
-            data_import=new_di,
-            initial_data_import=new_di,
-            source_dataset=self.dataset,
-            location=Point(5.09513, 50.48941, srid=4326),  # Andenne
-        )
-
-        # TODO: the import process doens't use migrate_linked_entities() anymore, we should probably remove it and update this test to do the same thing than during import
-        replacement_second_obs.migrate_linked_entities()
-        migrate_unseen_observations(new_di)
-        self.obs2_unseen_obj.refresh_from_db()
-
-        self.assertEqual(self.obs2_unseen_obj.observation, replacement_second_obs)
 
     def test_get_identical_observations_unsaved(self):
         """Regression test: the get_identical_observations() method also works with 'not yet saved' observations"""

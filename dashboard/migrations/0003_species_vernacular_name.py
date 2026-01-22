@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('dashboard', '0002_alter_dataimport_options_observation_references'),
+        ("dashboard", "0002_alter_dataimport_options_observation_references"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='species',
-            name='vernacular_name',
+            model_name="species",
+            name="vernacular_name",
             field=models.CharField(blank=True, max_length=100),
         ),
     ]

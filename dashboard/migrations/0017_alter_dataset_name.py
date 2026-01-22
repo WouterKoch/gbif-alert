@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('dashboard', '0016_area_tags'),
+        ("dashboard", "0016_area_tags"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='dataset',
-            name='name',
+            model_name="dataset",
+            name="name",
             field=models.TextField(),
         ),
     ]

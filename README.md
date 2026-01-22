@@ -50,19 +50,13 @@ See [INSTALL.md](INSTALL.md) for more information.
 # TODO next
 - talk damiano
 - check I still receive mails from dev-alert
-- install django debug toolbar to monitor queries on alert list page (for example)
-- check if nightly nownload still work and if data appear consistent after
-- test rq pprocesses (m![img.png](img.png)rk as seen in batch)
 
 
-Problems to clarify after migration (jan 2026 tests)
-====================================================
 
-- Hexagon: no color (okay, it was just materialized views to refresh)
-- Mark all as read: says ok, but the obs are not marked (for an alert) => hmmm I just retried and it seems to work :/
-- Still have to try to reimport nightly and see:
-  - if no errors
-  - if performance decent
+Last steps before huge refactor production deploy
+=================================================
 
-
-Import speed: c'est le "migrating comments" qui prends trop de temps, probablement à cause des unseen migrations
+- Carefully read IMPORT_OBSERVATIONS_OPTIMIZATIONS.md
+- Re-test on real data... ask damiano to do it too if we have a dev server?
+- Retest mail sending / mark_all_as_seen
+- Remove the ununsed function migrate_existing_entities, but also ask Claude to re-test the re-implement behavior is the same. 

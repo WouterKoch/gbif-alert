@@ -10,6 +10,7 @@ from django.contrib.gis.geos import Point
 from django.core.mail import mail_admins
 from django.core.management.base import BaseCommand, CommandParser, CommandError
 from django.db import transaction
+from django.db.models import Count
 from django.utils import timezone
 from dwca.darwincore.utils import qualname as qn  # type: ignore
 from dwca.read import DwCAReader  # type: ignore
@@ -457,11 +458,11 @@ class Command(BaseCommand):
 
             # 8. Remove unused Dataset entries (and edit related alerts)
             # Optimization: use annotation to find empty datasets in ONE query
-            from django.db.models import Count
-
-            empty_datasets = Dataset.objects.annotate(
-                obs_count=Count("observation")
-            ).filter(obs_count=0).prefetch_related("alert_set")
+            empty_datasets = (
+                Dataset.objects.annotate(obs_count=Count("observation"))
+                .filter(obs_count=0)
+                .prefetch_related("alert_set")
+            )
 
             for dataset in empty_datasets:
                 self.log_with_time(f"Deleting (no longer used) dataset {dataset}")

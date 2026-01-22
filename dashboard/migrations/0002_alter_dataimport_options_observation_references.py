@@ -4,19 +4,18 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('dashboard', '0001_squashed_0004_auto_20220324_1529'),
+        ("dashboard", "0001_squashed_0004_auto_20220324_1529"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='dataimport',
-            options={'ordering': ['-pk']},
+            name="dataimport",
+            options={"ordering": ["-pk"]},
         ),
         migrations.AddField(
-            model_name='observation',
-            name='references',
+            model_name="observation",
+            name="references",
             field=models.TextField(blank=True),
         ),
     ]

@@ -4,19 +4,18 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('dashboard', '0005_set_alert_name'),
+        ("dashboard", "0005_set_alert_name"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='alert',
-            name='name',
+            model_name="alert",
+            name="name",
             field=models.CharField(max_length=255),
         ),
         migrations.AlterUniqueTogether(
-            name='alert',
-            unique_together={('user', 'name')},
+            name="alert",
+            unique_together={("user", "name")},
         ),
     ]

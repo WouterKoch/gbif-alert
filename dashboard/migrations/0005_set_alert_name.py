@@ -11,7 +11,6 @@ def set_alert_names(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("dashboard", "0004_alert_name"),
     ]

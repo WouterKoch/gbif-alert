@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('dashboard', '0003_species_vernacular_name'),
+        ("dashboard", "0003_species_vernacular_name"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='alert',
-            name='name',
+            model_name="alert",
+            name="name",
             field=models.CharField(blank=True, max_length=255),
         ),
     ]

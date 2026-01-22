@@ -3,6 +3,7 @@ import hashlib
 import logging
 import os
 import smtplib
+import time
 from typing import Any, Self
 
 import html2text
@@ -285,7 +286,9 @@ def create_unseen_observations(observation_queryset: QuerySet["Observation"]) ->
         matching_obs_qs = recent_observations.filter(species_id__in=all_species_ids)
 
         if all_dataset_ids and not has_alert_without_dataset_filter:
-            matching_obs_qs = matching_obs_qs.filter(source_dataset_id__in=all_dataset_ids)
+            matching_obs_qs = matching_obs_qs.filter(
+                source_dataset_id__in=all_dataset_ids
+            )
 
         if all_area_ids and not has_alert_without_area_filter:
             from django.contrib.gis.db.models.aggregates import Union as AggregateUnion
@@ -294,7 +297,9 @@ def create_unseen_observations(observation_queryset: QuerySet["Observation"]) ->
                 area=AggregateUnion("mpoly")
             )["area"]
             if combined_areas:
-                matching_obs_qs = matching_obs_qs.filter(location__within=combined_areas)
+                matching_obs_qs = matching_obs_qs.filter(
+                    location__within=combined_areas
+                )
 
         # Collect unseen entries for bulk creation
         for obs in matching_obs_qs:
@@ -388,9 +393,6 @@ class ObservationManager(models.Manager["Observation"]):
 
 def migrate_unseen_observations(current_data_import: "DataImport") -> None:
     """Migrate unseen observations to new observations or delete them if they are no longer relevant."""
-    import logging
-    import time
-
     logger = logging.getLogger(__name__)
 
     logger.info("migrate_unseen_observations: Starting...")
@@ -401,13 +403,17 @@ def migrate_unseen_observations(current_data_import: "DataImport") -> None:
     ).all()
 
     if not unseen_observations.exists():
-        logger.info("migrate_unseen_observations: No unseen observations, returning early")
+        logger.info(
+            "migrate_unseen_observations: No unseen observations, returning early"
+        )
         return
 
     # Step 1: Load all unseen observations into memory
     logger.info("migrate_unseen_observations: Step 1 - Loading unseen observations...")
     unseen_list = list(unseen_observations)
-    logger.info(f"migrate_unseen_observations: Loaded {len(unseen_list)} unseen observations in {time.time() - step_start:.2f}s")
+    logger.info(
+        f"migrate_unseen_observations: Loaded {len(unseen_list)} unseen observations in {time.time() - step_start:.2f}s"
+    )
 
     # Step 2: Collect all unique stable_ids
     step_start = time.time()
@@ -415,7 +421,9 @@ def migrate_unseen_observations(current_data_import: "DataImport") -> None:
     stable_ids = set()
     for unseen in unseen_list:
         stable_ids.add(unseen.observation.stable_id)
-    logger.info(f"migrate_unseen_observations: Collected {len(stable_ids)} unique stable_ids in {time.time() - step_start:.2f}s")
+    logger.info(
+        f"migrate_unseen_observations: Collected {len(stable_ids)} unique stable_ids in {time.time() - step_start:.2f}s"
+    )
 
     # Step 3: Find the new observations for these stable_ids in the current import
     step_start = time.time()
@@ -425,24 +433,32 @@ def migrate_unseen_observations(current_data_import: "DataImport") -> None:
         data_import=current_data_import,
     )
     new_obs_by_stable_id = {obs.stable_id: obs for obs in new_observations}
-    logger.info(f"migrate_unseen_observations: Found {len(new_obs_by_stable_id)} matching observations in {time.time() - step_start:.2f}s")
+    logger.info(
+        f"migrate_unseen_observations: Found {len(new_obs_by_stable_id)} matching observations in {time.time() - step_start:.2f}s"
+    )
 
     # Step 4: Process unseen observations using the pre-fetched data
     step_start = time.time()
-    logger.info("migrate_unseen_observations: Step 4 - Processing unseen observations...")
+    logger.info(
+        "migrate_unseen_observations: Step 4 - Processing unseen observations..."
+    )
     to_delete = []
     to_update = []
     today = timezone.now().date()
 
     for i, unseen in enumerate(unseen_list):
         if i > 0 and i % 10000 == 0:
-            logger.info(f"migrate_unseen_observations: Processed {i}/{len(unseen_list)} unseen observations...")
+            logger.info(
+                f"migrate_unseen_observations: Processed {i}/{len(unseen_list)} unseen observations..."
+            )
 
         new_obs = new_obs_by_stable_id.get(unseen.observation.stable_id)
 
         if new_obs:
             # Check date threshold (cheap check, no DB query)
-            threshold_date = today - datetime.timedelta(days=unseen.user.notification_delay_days)
+            threshold_date = today - datetime.timedelta(
+                days=unseen.user.notification_delay_days
+            )
             if new_obs.date < threshold_date:
                 # Too old, delete
                 to_delete.append(unseen.pk)
@@ -459,21 +475,33 @@ def migrate_unseen_observations(current_data_import: "DataImport") -> None:
             # No corresponding observation in new import - delete
             to_delete.append(unseen.pk)
 
-    logger.info(f"migrate_unseen_observations: Processing done in {time.time() - step_start:.2f}s")
-    logger.info(f"migrate_unseen_observations: to_update={len(to_update)}, to_delete={len(to_delete)}")
+    logger.info(
+        f"migrate_unseen_observations: Processing done in {time.time() - step_start:.2f}s"
+    )
+    logger.info(
+        f"migrate_unseen_observations: to_update={len(to_update)}, to_delete={len(to_delete)}"
+    )
 
     # Step 5: Apply changes
     step_start = time.time()
     if to_delete:
-        logger.info(f"migrate_unseen_observations: Step 5a - Deleting {len(to_delete)} unseen observations...")
+        logger.info(
+            f"migrate_unseen_observations: Step 5a - Deleting {len(to_delete)} unseen observations..."
+        )
         ObservationUnseen.objects.filter(pk__in=to_delete).delete()
-        logger.info(f"migrate_unseen_observations: Deletion done in {time.time() - step_start:.2f}s")
+        logger.info(
+            f"migrate_unseen_observations: Deletion done in {time.time() - step_start:.2f}s"
+        )
 
     step_start = time.time()
     if to_update:
-        logger.info(f"migrate_unseen_observations: Step 5b - Updating {len(to_update)} unseen observations...")
+        logger.info(
+            f"migrate_unseen_observations: Step 5b - Updating {len(to_update)} unseen observations..."
+        )
         ObservationUnseen.objects.bulk_update(to_update, ["observation"])
-        logger.info(f"migrate_unseen_observations: Update done in {time.time() - step_start:.2f}s")
+        logger.info(
+            f"migrate_unseen_observations: Update done in {time.time() - step_start:.2f}s"
+        )
 
     logger.info("migrate_unseen_observations: Complete")
 
@@ -606,85 +634,6 @@ class Observation(models.Model):
         return the_date < (
             today - datetime.timedelta(days=user.notification_delay_days)
         )
-
-    # def mark_as_unseen_for_all_users_if_needed(self) -> None:
-    #     """Mark the observation as unseen for all users if:
-    #     - it's more recent than the user's notification delay
-    #     - it matches at least one alert of the user
-    #
-    #     !! It doesn't look into the status (to check if the user has already seen
-    #     it), so it is only suitable for new observations, not replaced ones !!
-    #
-    #     """
-    #
-    #     # TODO: test this logic !!
-    #     for user in get_user_model().objects.all():
-    #         if not self.date_older_than_user_delay(
-    #             user, the_date=self.date
-    #         ) and user.obs_match_alerts(self):
-    #             self.mark_as_unseen_by(user)
-
-    # def migrate_linked_entities(self) -> bool:
-    #     """Migrate existing entities (comments, ...) linked to a previous observation that share the stable ID
-    #
-    #     Does nothing if there's no replaced observation.
-    #
-    #     Returns True if it migrated an existing observation, False otherwise
-    #
-    #     Note: in case an Unseen object isn't relevant anymore (because the observation
-    #     is too old, or it does not belong to an alert), it will be deleted rather than migrated
-    #     """
-    #     replaced_observation = self.replaced_observation
-    #     if replaced_observation is not None:
-    #         # 1. Migrating comments
-    #         for comment in replaced_observation.observationcomment_set.all():
-    #             comment.observation = self
-    #             comment.save()
-    #         # 2. Migrating seen/unseen status
-    #         for observation_unseen in replaced_observation.observationunseen_set.all():
-    #             # TODO: extensively test this
-    #             if not observation_unseen.relevant_for_user(
-    #                 date_new_observation=self.date
-    #             ):
-    #                 observation_unseen.delete()
-    #             else:
-    #                 observation_unseen.observation = self
-    #                 observation_unseen.save()
-    #
-    #         return True
-    #     else:
-    #         return False
-    # TODO: rename this to migrate_linked_Comments since the scope changed
-    # TODO: make sure all calling code also calls migrate_unseen_observations
-    def migrate_linked_entities(self) -> bool:
-        """Migrate existing entities (comments, ...) linked to a previous observation that share the stable ID
-
-        Does nothing if there's no replaced observation.
-
-        Returns True if it migrated an existing observation, False otherwise
-
-        Note: in case an Unseen object isn't relevant anymore (because the observation
-        is too old, or it does not belong to an alert), it will be deleted rather than migrated
-        """
-        replaced_observation = self.replaced_observation
-        if replaced_observation is not None:
-            # 1. Migrating comments
-            replaced_observation.observationcomment_set.update(observation=self)
-
-            # 2. Migrating seen/unseen status
-            # for observation_unseen in replaced_observation.observationunseen_set.all():
-            #     # TODO: extensively test this
-            #     if not observation_unseen.relevant_for_user(
-            #         date_new_observation=self.date
-            #     ):
-            #         observation_unseen.delete()
-            #     else:
-            #         observation_unseen.observation = self
-            #         observation_unseen.save()
-
-            return True
-        else:
-            return False
 
     @cached_property
     def replaced_observation(self) -> Self | None:

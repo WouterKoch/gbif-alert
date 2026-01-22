@@ -4,7 +4,9 @@ from dashboard.views.helpers import create_or_refresh_all_materialized_views
 
 
 class Command(BaseCommand):
-    help = "Create or refresh all materialized views used for the map hexagon aggregation"
+    help = (
+        "Create or refresh all materialized views used for the map hexagon aggregation"
+    )
 
     def handle(self, *args, **options) -> None:
         self.stdout.write("Refreshing all materialized views...")
