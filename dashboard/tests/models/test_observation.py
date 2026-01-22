@@ -247,8 +247,9 @@ class ObservationTests(TestCase):
         old_observation = self.obs
 
         # Migrate entities
+        # TODO: the import process doens't use migrate_linked_entities() anymore, we should probably remove it and update this test to do the same thing than during import
         new_observation.migrate_linked_entities()
-        migrate_unseen_observations()
+        migrate_unseen_observations(new_di)
 
         # Make sure the counts for comments are correct
         self.assertEqual(new_observation.observationcomment_set.count(), 2)
@@ -294,8 +295,9 @@ class ObservationTests(TestCase):
             location=Point(5.09513, 50.48941, srid=4326),  # Andenne
         )
 
+        # TODO: the import process doens't use migrate_linked_entities() anymore, we should probably remove it and update this test to do the same thing than during import
         replacement_second_obs.migrate_linked_entities()
-        migrate_unseen_observations()
+        migrate_unseen_observations(new_di)
         self.obs2_unseen_obj.refresh_from_db()
 
         self.assertEqual(self.obs2_unseen_obj.observation, replacement_second_obs)

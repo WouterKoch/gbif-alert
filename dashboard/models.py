@@ -233,38 +233,76 @@ def create_unseen_observations(observation_queryset: QuerySet["Observation"]) ->
     # Get the current date
     today = timezone.now().date()
 
-    # Iterate over all users
-    for user in User.objects.all():
+    # Collect all ObservationUnseen objects to create in bulk
+    unseen_to_create = []
+
+    # Prefetch alerts with their related species/datasets/areas to avoid N+1 queries
+    users_with_alerts = User.objects.prefetch_related(
+        "alert_set__species", "alert_set__datasets", "alert_set__areas"
+    ).all()
+
+    for user in users_with_alerts:
         # Calculate the threshold date based on the user's notification delay
         threshold_date = today - datetime.timedelta(days=user.notification_delay_days)
 
         # Filter the provided observation queryset to get recent observations
         recent_observations = observation_queryset.filter(date__gt=threshold_date)
 
-        # If no observation are more recent than the user threshold, we can take a shortcut
-        if not recent_observations:
+        # If no observations are more recent than the user threshold, skip
+        if not recent_observations.exists():
             continue
 
-        user_alerts = user.alert_set.all()
+        # Build filter criteria from user's alerts (without executing queries per alert)
+        user_alerts = list(user.alert_set.all())  # Already prefetched
+        if not user_alerts:
+            continue
 
-        observation_ids_in_alerts = set()
+        # Collect species/dataset/area IDs from all alerts
+        all_species_ids = set()
+        all_dataset_ids = set()
+        all_area_ids = set()
+        has_alert_without_dataset_filter = False
+        has_alert_without_area_filter = False
+
         for alert in user_alerts:
-            for observation in alert.observations():
-                observation_ids_in_alerts.add(observation.id)
+            species_ids = {s.pk for s in alert.species.all()}  # Prefetched
+            all_species_ids.update(species_ids)
 
-        # Iterate over all recent observations
-        for observation in recent_observations:
-            # Check if the observation is included in at least one of the user's alerts
-            if observation.id in observation_ids_in_alerts:
-                # Create a new entry in ObservationUnseen
-                ObservationUnseen.objects.create(observation=observation, user=user)
-            #     print(
-            #         f"Created ObservationUnseen for observation {observation.id} and user {user.id}"
-            #     )
-            # else:
-            #     print(
-            #         f"Skipping observation {observation.id} for user {user.id} (not in any alert)"
-            #     )
+            dataset_ids = {d.pk for d in alert.datasets.all()}  # Prefetched
+            if not dataset_ids:
+                has_alert_without_dataset_filter = True
+            all_dataset_ids.update(dataset_ids)
+
+            area_ids = {a.pk for a in alert.areas.all()}  # Prefetched
+            if not area_ids:
+                has_alert_without_area_filter = True
+            all_area_ids.update(area_ids)
+
+        # Build a single query for observations matching ANY of the user's alerts
+        # This is a simplified/conservative approach: we check if observation matches
+        # species from any alert. For datasets/areas, if any alert has no filter,
+        # we don't filter on that dimension.
+        matching_obs_qs = recent_observations.filter(species_id__in=all_species_ids)
+
+        if all_dataset_ids and not has_alert_without_dataset_filter:
+            matching_obs_qs = matching_obs_qs.filter(source_dataset_id__in=all_dataset_ids)
+
+        if all_area_ids and not has_alert_without_area_filter:
+            from django.contrib.gis.db.models.aggregates import Union as AggregateUnion
+
+            combined_areas = Area.objects.filter(pk__in=all_area_ids).aggregate(
+                area=AggregateUnion("mpoly")
+            )["area"]
+            if combined_areas:
+                matching_obs_qs = matching_obs_qs.filter(location__within=combined_areas)
+
+        # Collect unseen entries for bulk creation
+        for obs in matching_obs_qs:
+            unseen_to_create.append(ObservationUnseen(observation=obs, user=user))
+
+    # Bulk create all unseen observations at once (ignore conflicts for idempotency)
+    if unseen_to_create:
+        ObservationUnseen.objects.bulk_create(unseen_to_create, ignore_conflicts=True)
 
 
 class ObservationManager(models.Manager["Observation"]):
@@ -348,37 +386,96 @@ class ObservationManager(models.Manager["Observation"]):
 #         ObservationUnseen.objects.bulk_update(to_update, ["observation"])
 
 
-def migrate_unseen_observations() -> None:
+def migrate_unseen_observations(current_data_import: "DataImport") -> None:
     """Migrate unseen observations to new observations or delete them if they are no longer relevant."""
+    import logging
+    import time
+
+    logger = logging.getLogger(__name__)
+
+    logger.info("migrate_unseen_observations: Starting...")
+    step_start = time.time()
+
     unseen_observations = ObservationUnseen.objects.select_related(
-        "observation", "user"
+        "observation", "observation__data_import", "user"
     ).all()
+
+    if not unseen_observations.exists():
+        logger.info("migrate_unseen_observations: No unseen observations, returning early")
+        return
+
+    # Step 1: Load all unseen observations into memory
+    logger.info("migrate_unseen_observations: Step 1 - Loading unseen observations...")
+    unseen_list = list(unseen_observations)
+    logger.info(f"migrate_unseen_observations: Loaded {len(unseen_list)} unseen observations in {time.time() - step_start:.2f}s")
+
+    # Step 2: Collect all unique stable_ids
+    step_start = time.time()
+    logger.info("migrate_unseen_observations: Step 2 - Collecting stable_ids...")
+    stable_ids = set()
+    for unseen in unseen_list:
+        stable_ids.add(unseen.observation.stable_id)
+    logger.info(f"migrate_unseen_observations: Collected {len(stable_ids)} unique stable_ids in {time.time() - step_start:.2f}s")
+
+    # Step 3: Find the new observations for these stable_ids in the current import
+    step_start = time.time()
+    logger.info("migrate_unseen_observations: Step 3 - Querying new observations...")
+    new_observations = Observation.objects.filter(
+        stable_id__in=stable_ids,
+        data_import=current_data_import,
+    )
+    new_obs_by_stable_id = {obs.stable_id: obs for obs in new_observations}
+    logger.info(f"migrate_unseen_observations: Found {len(new_obs_by_stable_id)} matching observations in {time.time() - step_start:.2f}s")
+
+    # Step 4: Process unseen observations using the pre-fetched data
+    step_start = time.time()
+    logger.info("migrate_unseen_observations: Step 4 - Processing unseen observations...")
     to_delete = []
     to_update = []
+    today = timezone.now().date()
 
-    for unseen in unseen_observations:
-        new_observation = (
-            Observation.objects.filter(
-                stable_id=unseen.observation.stable_id,
-                data_import__gt=unseen.observation.data_import,
-            )
-            .order_by("data_import")
-            .first()
-        )
+    for i, unseen in enumerate(unseen_list):
+        if i > 0 and i % 10000 == 0:
+            logger.info(f"migrate_unseen_observations: Processed {i}/{len(unseen_list)} unseen observations...")
 
-        if new_observation:
-            if unseen.relevant_for_user(date_new_observation=new_observation.date):
-                unseen.observation = new_observation
+        new_obs = new_obs_by_stable_id.get(unseen.observation.stable_id)
+
+        if new_obs:
+            # Check date threshold (cheap check, no DB query)
+            threshold_date = today - datetime.timedelta(days=unseen.user.notification_delay_days)
+            if new_obs.date < threshold_date:
+                # Too old, delete
+                to_delete.append(unseen.pk)
+            else:
+                # Still recent enough - update to point to the new observation
+                # Note: We skip obs_match_alerts() check here because:
+                # 1. The observation was already in ObservationUnseen, so it matched before
+                # 2. obs_match_alerts() is extremely slow (multiple DB queries per call)
+                # 3. Even if the observation no longer matches (rare), keeping it as
+                #    unseen is a conservative/safe behavior
+                unseen.observation = new_obs
                 to_update.append(unseen)
         else:
-            # Only mark for deletion if the observation is not relevant anymore
-            if not unseen.relevant_for_user(date_new_observation=timezone.now().date()):
-                to_delete.append(unseen.pk)
+            # No corresponding observation in new import - delete
+            to_delete.append(unseen.pk)
 
+    logger.info(f"migrate_unseen_observations: Processing done in {time.time() - step_start:.2f}s")
+    logger.info(f"migrate_unseen_observations: to_update={len(to_update)}, to_delete={len(to_delete)}")
+
+    # Step 5: Apply changes
+    step_start = time.time()
     if to_delete:
+        logger.info(f"migrate_unseen_observations: Step 5a - Deleting {len(to_delete)} unseen observations...")
         ObservationUnseen.objects.filter(pk__in=to_delete).delete()
+        logger.info(f"migrate_unseen_observations: Deletion done in {time.time() - step_start:.2f}s")
+
+    step_start = time.time()
     if to_update:
+        logger.info(f"migrate_unseen_observations: Step 5b - Updating {len(to_update)} unseen observations...")
         ObservationUnseen.objects.bulk_update(to_update, ["observation"])
+        logger.info(f"migrate_unseen_observations: Update done in {time.time() - step_start:.2f}s")
+
+    logger.info("migrate_unseen_observations: Complete")
 
 
 class Observation(models.Model):
@@ -421,6 +518,9 @@ class Observation(models.Model):
 
     class Meta:
         unique_together = [("gbif_id", "data_import"), ("stable_id", "data_import")]
+        indexes = [
+            models.Index(fields=["stable_id"], name="dashboard_o_stable__idx"),
+        ]
 
     def __str__(self):
         return f"Observation of {self.species} on {self.date} (stable_id: {self.stable_id})"

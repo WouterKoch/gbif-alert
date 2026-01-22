@@ -43,6 +43,7 @@ See [INSTALL.md](INSTALL.md) for more information.
 # TODO for data migration:
 - migrate
 - run python manage.py prepare_new_seen_unseen
+- run python manage.py refresh_materialized_views
 
 
 
@@ -52,6 +53,16 @@ See [INSTALL.md](INSTALL.md) for more information.
 - install django debug toolbar to monitor queries on alert list page (for example)
 - check if nightly nownload still work and if data appear consistent after
 - test rq pprocesses (m![img.png](img.png)rk as seen in batch)
+
+
+Problems to clarify after migration (jan 2026 tests)
+====================================================
+
+- Hexagon: no color (okay, it was just materialized views to refresh)
+- Mark all as read: says ok, but the obs are not marked (for an alert) => hmmm I just retried and it seems to work :/
+- Still have to try to reimport nightly and see:
+  - if no errors
+  - if performance decent
 
 
 Import speed: c'est le "migrating comments" qui prends trop de temps, probablement à cause des unseen migrations

@@ -17,7 +17,6 @@ from dwca.rows import CoreRow  # type: ignore
 from gbif_blocking_occurrences_download import download_occurrences as download_gbif_occurrences  # type: ignore
 from maintenance_mode.core import set_maintenance_mode  # type: ignore
 
-from dashboard.management.commands.helpers import get_dataset_name_from_gbif_api
 from dashboard.models import (
     Species,
     Observation,
@@ -62,7 +61,7 @@ def species_for_row(row: CoreRow, hash_species) -> Species:
 def extract_gbif_download_id_from_dwca(dwca: DwCAReader) -> str:
     e = dwca.metadata.find("dataset").find("alternateIdentifier")
     # As of 2025-03-13, GBIF has changed the field name...
-    # This new adjustement is untested
+    # This new adjustment is untested
     if e is not None:
         return e.text
     else:
@@ -267,12 +266,44 @@ class Command(BaseCommand):
         self.log_with_time("Bulk creation")
         inserted_observations = Observation.objects.bulk_create(observations_to_insert)
         self.log_with_time("Migrating comments")
+
+        # Optimization: batch-fetch all potential replaced observations in ONE query
+        # instead of one query per inserted observation (N+1 problem)
+        stable_ids = [obs.stable_id for obs in inserted_observations]
+        inserted_obs_pks = {obs.pk for obs in inserted_observations}
+
+        # Find all existing observations with matching stable_ids (excluding newly inserted ones)
+        existing_obs_by_stable_id = {}
+        for obs in Observation.objects.filter(stable_id__in=stable_ids).exclude(
+            pk__in=inserted_obs_pks
+        ):
+            existing_obs_by_stable_id[obs.stable_id] = obs
+
+        # Build mapping from new observations to replaced observations
         new_obs_ids = []
+        replaced_obs_pks = []
+        stable_id_to_new_obs = {}
+
         for obs in inserted_observations:
             self.stdout.write("/", ending="")
-            replaced = obs.migrate_linked_entities()
-            if not replaced:
+            replaced_obs = existing_obs_by_stable_id.get(obs.stable_id)
+            if replaced_obs is not None:
+                replaced_obs_pks.append(replaced_obs.pk)
+                stable_id_to_new_obs[obs.stable_id] = obs
+            else:
                 new_obs_ids.append(obs.id)
+
+        # Batch migrate comments in ONE update query (no need to load comments into memory)
+        from dashboard.models import ObservationComment
+
+        if replaced_obs_pks:
+            # For each comment on a replaced observation, update it to point to the new one
+            for old_obs in Observation.objects.filter(pk__in=replaced_obs_pks):
+                new_obs = stable_id_to_new_obs.get(old_obs.stable_id)
+                if new_obs:
+                    ObservationComment.objects.filter(observation=old_obs).update(
+                        observation=new_obs
+                    )
 
         self.log_with_time("Creating unseen observations for new observations")
         create_unseen_observations(Observation.objects.filter(id__in=new_obs_ids))
@@ -288,6 +319,8 @@ class Command(BaseCommand):
         self.transaction_was_successful = True
 
     def handle(self, *args, **options) -> None:
+        start_time = time.time()
+
         # Allow the verbosity option for our custom logging
         # (see https://reinout.vanrees.org/weblog/2017/03/08/logging-verbosity-managment-commands.html)
         verbosity = int(options["verbosity"])
@@ -404,7 +437,7 @@ class Command(BaseCommand):
 
             # Migrate the unseen objects, or delete them if they are not relevant anymore
             self.log_with_time("Migrating unseen observations")
-            migrate_unseen_observations()
+            migrate_unseen_observations(current_data_import)
 
             self.log_with_time(
                 "now deleting observations linked to previous data imports..."
@@ -423,19 +456,25 @@ class Command(BaseCommand):
             )
 
             # 8. Remove unused Dataset entries (and edit related alerts)
-            for dataset in Dataset.objects.all():
-                if dataset.observation_set.count() == 0:
-                    self.log_with_time(f"Deleting (no longer used) dataset {dataset}")
+            # Optimization: use annotation to find empty datasets in ONE query
+            from django.db.models import Count
 
-                    alerts_referencing_dataset = dataset.alert_set.all()
-                    if alerts_referencing_dataset.count() > 0:
-                        for alert in alerts_referencing_dataset:
-                            self.log_with_time(
-                                f"We'll first need to un-reference this dataset from alert #{alert}"
-                            )
-                            alert.datasets.remove(dataset)
+            empty_datasets = Dataset.objects.annotate(
+                obs_count=Count("observation")
+            ).filter(obs_count=0).prefetch_related("alert_set")
 
-                    dataset.delete()
+            for dataset in empty_datasets:
+                self.log_with_time(f"Deleting (no longer used) dataset {dataset}")
+
+                alerts_referencing_dataset = dataset.alert_set.all()  # Prefetched
+                if alerts_referencing_dataset:
+                    for alert in alerts_referencing_dataset:
+                        self.log_with_time(
+                            f"We'll first need to un-reference this dataset from alert #{alert}"
+                        )
+                        alert.datasets.remove(dataset)
+
+                dataset.delete()
 
             # 9. Finalize the DataImport object
             self.log_with_time("Updating the DataImport object")
@@ -456,4 +495,9 @@ class Command(BaseCommand):
         else:
             send_error_import_email()
 
-        self.log_with_time("Import observations process successfully completed")
+        elapsed_time = time.time() - start_time
+        elapsed_minutes = int(elapsed_time // 60)
+        elapsed_seconds = int(elapsed_time % 60)
+        self.log_with_time(
+            f"Import observations process successfully completed in {elapsed_minutes}m {elapsed_seconds}s"
+        )
