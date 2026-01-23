@@ -16,7 +16,6 @@ Including another URLconf
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import path, include, reverse_lazy
-from django.views.i18n import JavaScriptCatalog
 
 urlpatterns = [
     path("", include("dashboard.urls")),

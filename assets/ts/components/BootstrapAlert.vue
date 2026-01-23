@@ -23,7 +23,7 @@ const props = withDefaults(defineProps<Props>(), {
   dismissible: true,
 });
 
-const emit = defineEmits(["clickClose"]);
+defineEmits(["clickClose"]);
 
 const alertClasses = computed(() => {
   const styleClass = `alert-${props.alertType}`;

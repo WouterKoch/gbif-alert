@@ -56,7 +56,7 @@ class PublicApiTests(TestCase):
             source_dataset=cls.first_dataset,
             location=Point(5.09513, 50.48941, srid=4326),  # Andenne
         )
-        cls.obs2 = second_obs = Observation.objects.create(
+        cls.obs2 = Observation.objects.create(
             gbif_id=2,
             occurrence_id="2",
             species=cls.second_species,

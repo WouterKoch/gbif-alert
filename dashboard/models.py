@@ -8,7 +8,6 @@ from typing import Any, Self
 
 import html2text
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser, AnonymousUser
 from django.contrib.gis.db import models
 from django.contrib.gis.db.models.aggregates import Union as AggregateUnion

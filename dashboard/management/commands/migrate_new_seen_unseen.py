@@ -7,7 +7,7 @@ from django.core.management.base import BaseCommand
 from django.db import IntegrityError
 from django.utils import timezone
 
-from dashboard.models import Observation, User, ObservationUnseen
+from dashboard.models import User, ObservationUnseen
 
 one_year_ago = (timezone.now() - datetime.timedelta(days=365)).date()
 

@@ -53,7 +53,7 @@ export default defineComponent({
   methods: {
     updateDisabledAttribute: function () {
       if (this.slider !== null) {
-        if (this.sliderDisabled === true) {
+        if (this.sliderDisabled) {
           this.slider.target.setAttribute("disabled", "true");
         } else {
           this.slider.target.removeAttribute("disabled");

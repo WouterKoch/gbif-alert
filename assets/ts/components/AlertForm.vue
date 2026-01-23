@@ -251,7 +251,7 @@ const submit = function () {
   axios.post(props.alertUrl, alertData.value, {headers: headers}).then((response) => {
     alertIdFromServer.value = response.data.alertId;
     successfullySaved.value = response.data.success;
-    if (successfullySaved.value !== true) {
+    if (!successfullySaved.value) {
       nameErrors.value = response.data.errors.name || [];
       speciesErrors.value = response.data.errors.species || [];
       globalErrors.value = response.data.errors['__all__'] || [];

@@ -52,7 +52,7 @@ class MapsTestDataMixin(object):
             source_dataset=cls.first_dataset,
             location=Point(5.09513, 50.48941, srid=4326),  # Andenne
         )
-        second_obs = Observation.objects.create(
+        Observation.objects.create(
             gbif_id=2,
             occurrence_id="2",
             species=cls.second_species,
