@@ -408,6 +408,106 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
         self.assertEqual(response.json()["min"], 1)
         self.assertEqual(response.json()["max"], 2)
 
+    def test_min_max_per_hexagon_with_initial_data_import_filter(self):
+        second_di = DataImport.objects.create(start=timezone.now())
+        Observation.objects.create(
+            gbif_id=3,
+            occurrence_id="3",
+            species=self.first_species,
+            date=datetime.date.today(),
+            data_import=second_di,
+            initial_data_import=second_di,
+            source_dataset=self.first_dataset,
+            location=Point(4.36229, 50.64628, srid=4326),  # Lillois
+        )
+
+        create_or_refresh_materialized_views(zoom_levels=[8])
+
+        # Filter by first data import: 2 observations in different hexagons -> min=1, max=1
+        response = self.client.get(
+            reverse("dashboard:internal-api:maps:mvt-min-max-per-hexagon"),
+            data={"zoom": 8, "initialDataImportIds[]": self.di.pk},
+        )
+        self.assertEqual(response.json()["min"], 1)
+        self.assertEqual(response.json()["max"], 1)
+
+        # Filter by second data import: 1 observation -> min=1, max=1
+        response = self.client.get(
+            reverse("dashboard:internal-api:maps:mvt-min-max-per-hexagon"),
+            data={"zoom": 8, "initialDataImportIds[]": second_di.pk},
+        )
+        self.assertEqual(response.json()["min"], 1)
+        self.assertEqual(response.json()["max"], 1)
+
+        # Without filter: Andenne has 1, Lillois has 2 -> min=1, max=2
+        response = self.client.get(
+            reverse("dashboard:internal-api:maps:mvt-min-max-per-hexagon"),
+            data={"zoom": 8},
+        )
+        self.assertEqual(response.json()["min"], 1)
+        self.assertEqual(response.json()["max"], 2)
+
+    def test_min_max_per_hexagon_with_start_date_filter(self):
+        # Add a third observation in Lillois with a recent date
+        Observation.objects.create(
+            gbif_id=3,
+            occurrence_id="3",
+            species=self.first_species,
+            date=datetime.date(2023, 6, 15),
+            data_import=self.di,
+            initial_data_import=self.di,
+            source_dataset=self.first_dataset,
+            location=Point(4.36229, 50.64628, srid=4326),  # Lillois
+        )
+
+        create_or_refresh_materialized_views(zoom_levels=[8])
+
+        # Without filter: Andenne has 1 obs, Lillois has 2 -> min=1, max=2
+        response = self.client.get(
+            reverse("dashboard:internal-api:maps:mvt-min-max-per-hexagon"),
+            data={"zoom": 8},
+        )
+        self.assertEqual(response.json()["min"], 1)
+        self.assertEqual(response.json()["max"], 2)
+
+        # With startDate=2022-01-01: obs1 (2020-01-01) excluded, obs2 (today) and obs3 (2023-06-15) remain in Lillois
+        response = self.client.get(
+            reverse("dashboard:internal-api:maps:mvt-min-max-per-hexagon"),
+            data={"zoom": 8, "startDate": "2022-01-01"},
+        )
+        self.assertEqual(response.json()["min"], 2)
+        self.assertEqual(response.json()["max"], 2)
+
+    def test_min_max_per_hexagon_with_end_date_filter(self):
+        # Add a third observation in Lillois with a recent date
+        Observation.objects.create(
+            gbif_id=3,
+            occurrence_id="3",
+            species=self.first_species,
+            date=datetime.date(2023, 6, 15),
+            data_import=self.di,
+            initial_data_import=self.di,
+            source_dataset=self.first_dataset,
+            location=Point(4.36229, 50.64628, srid=4326),  # Lillois
+        )
+
+        create_or_refresh_materialized_views(zoom_levels=[8])
+
+        # With endDate=2022-02-02: only obs1 (2020-01-01) in Andenne remains
+        response = self.client.get(
+            reverse("dashboard:internal-api:maps:mvt-min-max-per-hexagon"),
+            data={"zoom": 8, "endDate": "2022-02-02"},
+        )
+        self.assertEqual(response.json()["min"], 1)
+        self.assertEqual(response.json()["max"], 1)
+
+    def test_min_max_per_hexagon_no_zoom(self):
+        """When zoom is not provided, the view returns None which Django rejects"""
+        with self.assertRaises(ValueError):
+            self.client.get(
+                reverse("dashboard:internal-api:maps:mvt-min-max-per-hexagon"),
+            )
+
 
 class MVTServerCommonTestsMixin(object):
     """Common tests to be mixed in any MVT server test class
@@ -675,7 +775,7 @@ class MVTServerSingleObsTests(MapsTestDataMixin, MVTServerCommonTestsMixin, Test
 
         # Same, but we add some species filtering that doesn't filter anything out
         url_with_params = (
-            f"{base_url}?status=unseen&?speciesIds[]={self.first_species.pk}"
+            f"{base_url}?status=unseen&speciesIds[]={self.first_species.pk}"
         )
         response = self.client.get(url_with_params)
         decoded_tile = mapbox_vector_tile.decode(response.content)
@@ -691,6 +791,39 @@ class MVTServerSingleObsTests(MapsTestDataMixin, MVTServerCommonTestsMixin, Test
         response = self.client.get(url_with_params)
         decoded_tile = mapbox_vector_tile.decode(response.content)
         self.assertEqual(decoded_tile, {})
+
+    def test_tiles_initial_data_import_filter(self):
+        second_di = DataImport.objects.create(start=timezone.now())
+        Observation.objects.create(
+            gbif_id=3,
+            occurrence_id="3",
+            species=self.first_species,
+            date=datetime.date.today(),
+            data_import=second_di,
+            initial_data_import=second_di,
+            source_dataset=self.first_dataset,
+            location=Point(4.36229, 50.64628, srid=4326),  # Lillois
+        )
+
+        base_url = reverse(
+            self.server_url_name,
+            kwargs={"zoom": 2, "x": 2, "y": 1},
+        )
+
+        # Filter by first data import: only the 2 original observations
+        url_with_params = f"{base_url}?initialDataImportIds[]={self.di.pk}"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(len(decoded_tile["default"]["features"]), 2)
+
+        # Filter by second data import: only the new observation
+        url_with_params = f"{base_url}?initialDataImportIds[]={second_di.pk}"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(len(decoded_tile["default"]["features"]), 1)
+        self.assertEqual(
+            decoded_tile["default"]["features"][0]["properties"]["gbif_id"], "3"
+        )
 
 
 @override_settings(
@@ -1248,5 +1381,95 @@ class MVTServerAggregatedObsTests(
                 kwargs={"zoom": 14, "x": 8391, "y": 5510},
             )
         )
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(decoded_tile, {})
+
+    def test_tiles_initial_data_import_filter(self):
+        second_di = DataImport.objects.create(start=timezone.now())
+        Observation.objects.create(
+            gbif_id=3,
+            occurrence_id="3",
+            species=self.first_species,
+            date=datetime.date.today(),
+            data_import=second_di,
+            initial_data_import=second_di,
+            source_dataset=self.first_dataset,
+            location=Point(4.36229, 50.64628, srid=4326),  # Lillois
+        )
+
+        base_url = reverse(
+            self.server_url_name,
+            kwargs={"zoom": 2, "x": 2, "y": 1},
+        )
+
+        # Filter by first data import: one hexagon with count=2
+        url_with_params = f"{base_url}?initialDataImportIds[]={self.di.pk}"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(len(decoded_tile["default"]["features"]), 1)
+        self.assertEqual(
+            decoded_tile["default"]["features"][0]["properties"]["count"], 2
+        )
+
+        # Filter by second data import: one hexagon with count=1
+        url_with_params = f"{base_url}?initialDataImportIds[]={second_di.pk}"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(len(decoded_tile["default"]["features"]), 1)
+        self.assertEqual(
+            decoded_tile["default"]["features"][0]["properties"]["count"], 1
+        )
+
+    def test_tiles_start_date_filter(self):
+        """Use the startDate parameter to filter out old observations"""
+        # At zoom 2: both observations are in one hexagon.
+        # obs1 is 2020-01-01 (Andenne), obs2 is today (Lillois).
+        # startDate=2022-01-01 should exclude obs1, leaving count=1.
+        base_url = reverse(
+            self.server_url_name,
+            kwargs={"zoom": 2, "x": 2, "y": 1},
+        )
+
+        url_with_params = f"{base_url}?startDate=2022-01-01"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(len(decoded_tile["default"]["features"]), 1)
+        self.assertEqual(
+            decoded_tile["default"]["features"][0]["properties"]["count"], 1
+        )
+
+        # Zoomed on Andenne: should be empty because the old observation is filtered out
+        base_url = reverse(
+            self.server_url_name,
+            kwargs={"zoom": 10, "x": 526, "y": 345},
+        )
+        url_with_params = f"{base_url}?startDate=2022-01-01"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(decoded_tile, {})
+
+    def test_tiles_end_date_filter(self):
+        """Use the endDate parameter to filter out recent observations"""
+        # endDate=2022-02-02 should exclude obs2 (today), leaving only obs1 (2020-01-01).
+        base_url = reverse(
+            self.server_url_name,
+            kwargs={"zoom": 2, "x": 2, "y": 1},
+        )
+
+        url_with_params = f"{base_url}?endDate=2022-02-02"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(len(decoded_tile["default"]["features"]), 1)
+        self.assertEqual(
+            decoded_tile["default"]["features"][0]["properties"]["count"], 1
+        )
+
+        # Zoomed on Lillois: should be empty because the recent observation is filtered out
+        base_url = reverse(
+            self.server_url_name,
+            kwargs={"zoom": 14, "x": 8390, "y": 5510},
+        )
+        url_with_params = f"{base_url}?endDate=2022-02-02"
+        response = self.client.get(url_with_params)
         decoded_tile = mapbox_vector_tile.decode(response.content)
         self.assertEqual(decoded_tile, {})
