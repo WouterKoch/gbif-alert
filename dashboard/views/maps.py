@@ -1,7 +1,5 @@
 """Observations tile server + related endpoints"""
 
-from string import Template
-
 from django.db import connection
 from django.http import HttpResponse, JsonResponse, HttpRequest
 from jinjasql import JinjaSql
@@ -11,126 +9,89 @@ from dashboard.utils import readable_string
 from dashboard.views.helpers import filters_from_request, extract_int_request
 from django.conf import settings
 
-AREAS_TABLE_NAME = Area.objects.model._meta.db_table
-OBSERVATIONS_TABLE_NAME = Observation.objects.model._meta.db_table
-OBSERVATIONUNSEEN_TABLE_NAME = ObservationUnseen.objects.model._meta.db_table
-SPECIES_TABLE_NAME = Species.objects.model._meta.db_table
-
-OBSERVATIONS_FIELD_NAME_POINT = "location"
-
-# ! Make sure the following formats are in sync
-DB_DATE_EXCHANGE_FORMAT_PYTHON = "%Y-%m-%d"  # To be passed to strftime()
-DB_DATE_EXCHANGE_FORMAT_POSTGRES = "YYYY-MM-DD"  # To be used in SQL queries
+_TBL_AREAS = Area.objects.model._meta.db_table
+_TBL_OBS = Observation.objects.model._meta.db_table
+_TBL_UNSEEN = ObservationUnseen.objects.model._meta.db_table
+_TBL_SPECIES = Species.objects.model._meta.db_table
 
 
 # !! IMPORTANT !! Make sure the observation filtering here is equivalent to what's done in
 # other places (views.helpers.filtered_observations_from_request). Otherwise, observations returned on the map and on
 # other components (table, ...) will be inconsistent.
 WHERE_CLAUSE = readable_string(
-    Template(
-        """ 
+    f"""
         1 = 1
-        {% if species_ids %}
-            AND obs.species_id IN {{ species_ids | inclause }}
-        {% endif %}
-        {% if datasets_ids %}
-            AND obs.source_dataset_id IN {{ datasets_ids | inclause }}
-        {% endif %}
-        {% if start_date %}
-            AND obs.date >= TO_DATE({{ start_date }}, '$date_format')
-        {% endif %}
-        {% if end_date %}
-            AND obs.date <= TO_DATE({{ end_date }}, '$date_format')
-        {% endif %}
-        {% if area_ids %}
+        {{% if species_ids %}}
+            AND obs.species_id IN {{{{ species_ids | inclause }}}}
+        {{% endif %}}
+        {{% if datasets_ids %}}
+            AND obs.source_dataset_id IN {{{{ datasets_ids | inclause }}}}
+        {{% endif %}}
+        {{% if start_date %}}
+            AND obs.date >= TO_DATE({{{{ start_date }}}}, 'YYYY-MM-DD')
+        {{% endif %}}
+        {{% if end_date %}}
+            AND obs.date <= TO_DATE({{{{ end_date }}}}, 'YYYY-MM-DD')
+        {{% endif %}}
+        {{% if area_ids %}}
             AND ST_Within(obs.location, areas.mpoly)
-        {% endif %}
-        {% if initial_data_import_ids %}
-            AND obs.initial_data_import_id IN {{ initial_data_import_ids | inclause }}
-        {% endif %}
-        {% if status == 'seen' %}
+        {{% endif %}}
+        {{% if initial_data_import_ids %}}
+            AND obs.initial_data_import_id IN {{{{ initial_data_import_ids | inclause }}}}
+        {{% endif %}}
+        {{% if status == 'seen' %}}
             AND NOT (EXISTS(
-            SELECT (1) FROM $observationunseen_table_name ov WHERE (
-                ov.id IN (SELECT ov1.id FROM $observationunseen_table_name ov1 WHERE ov1.user_id = {{ user_id }}) 
+            SELECT (1) FROM {_TBL_UNSEEN} ov WHERE (
+                ov.id IN (SELECT ov1.id FROM {_TBL_UNSEEN} ov1 WHERE ov1.user_id = {{{{ user_id }}}})
                 AND ov.observation_id = obs.id
             ) LIMIT 1))
-        {% endif %}
-        {% if status == 'unseen' %}
-            AND $observationunseen_table_name.id IN (
-                SELECT ov1.id FROM $observationunseen_table_name ov1 WHERE ov1.user_id = {{ user_id }}
+        {{% endif %}}
+        {{% if status == 'unseen' %}}
+            AND {_TBL_UNSEEN}.id IN (
+                SELECT ov1.id FROM {_TBL_UNSEEN} ov1 WHERE ov1.user_id = {{{{ user_id }}}}
             )
-        {% endif %}
-        {% if limit_to_tile %}
-            AND ST_Within(obs.location,  ST_TileEnvelope({{ zoom }}, {{ x }}, {{ y }}))
-        {% endif %}
+        {{% endif %}}
+        {{% if limit_to_tile %}}
+            AND ST_Within(obs.location,  ST_TileEnvelope({{{{ zoom }}}}, {{{{ x }}}}, {{{{ y }}}}))
+        {{% endif %}}
 """
-    ).substitute(
-        observationunseen_table_name=OBSERVATIONUNSEEN_TABLE_NAME,
-        date_format=DB_DATE_EXCHANGE_FORMAT_POSTGRES,
-    )
 )
 
-JINJASQL_FRAGMENT_FILTER_OBSERVATIONS = Template(
-    """
-    SELECT * FROM $observations_table_name as obs
-    LEFT JOIN $species_table_name as species
+JINJASQL_FRAGMENT_FILTER_OBSERVATIONS = f"""
+    SELECT * FROM {_TBL_OBS} as obs
+    LEFT JOIN {_TBL_SPECIES} as species
     ON obs.species_id = species.id
-    {% if status == 'unseen' %}
-        INNER JOIN $observationunseen_table_name
-        ON obs.id = $observationunseen_table_name.observation_id
-    {% endif %}
-    
-    {% if area_ids %}
-    , (SELECT mpoly FROM $areas_table_name WHERE $areas_table_name.id IN {{ area_ids | inclause }}) AS areas
-    {% endif %}
+    {{% if status == 'unseen' %}}
+        INNER JOIN {_TBL_UNSEEN}
+        ON obs.id = {_TBL_UNSEEN}.observation_id
+    {{% endif %}}
+
+    {{% if area_ids %}}
+    , (SELECT mpoly FROM {_TBL_AREAS} WHERE {_TBL_AREAS}.id IN {{{{ area_ids | inclause }}}}) AS areas
+    {{% endif %}}
     WHERE (
-        $where_clause
+        {WHERE_CLAUSE}
     )
 """
-).substitute(
-    observationunseen_table_name=OBSERVATIONUNSEEN_TABLE_NAME,
-    areas_table_name=AREAS_TABLE_NAME,
-    species_table_name=SPECIES_TABLE_NAME,
-    observations_table_name=OBSERVATIONS_TABLE_NAME,
-    where_clause=WHERE_CLAUSE,
-)
 
-JINJASQL_FRAGMENT_AGGREGATED_GRID = Template(
-    """
+JINJASQL_FRAGMENT_AGGREGATED_GRID = f"""
     SELECT COUNT(*), hexes.geom
     FROM
-        ST_HexagonGrid({{ hex_size_meters }}, ST_TileEnvelope({{ zoom }}, {{ x }}, {{ y }})) AS hexes
-        INNER JOIN ($jinjasql_fragment_filter_observations)
+        ST_HexagonGrid({{{{ hex_size_meters }}}}, ST_TileEnvelope({{{{ zoom }}}}, {{{{ x }}}}, {{{{ y }}}})) AS hexes
+        INNER JOIN ({JINJASQL_FRAGMENT_FILTER_OBSERVATIONS})
     AS dashboard_filtered_occ
 
-    ON ST_Intersects(dashboard_filtered_occ.$observations_field_name_point, hexes.geom)
+    ON ST_Intersects(dashboard_filtered_occ.location, hexes.geom)
     GROUP BY hexes.geom
 """
-).substitute(
-    observations_table_name=OBSERVATIONS_TABLE_NAME,
-    observations_field_name_point=OBSERVATIONS_FIELD_NAME_POINT,
-    jinjasql_fragment_filter_observations=JINJASQL_FRAGMENT_FILTER_OBSERVATIONS,
-)
 
 
-def mvt_tiles_observations(
-    request: HttpRequest, zoom: int, x: int, y: int
-) -> HttpResponse:
-    """Tile server, showing non-aggregated observations. Filters are honoured."""
-    sql_template = readable_string(
-        Template(
-            """
-            WITH mvtgeom AS (
-                SELECT ST_AsMVTGeom(observations.location, ST_TileEnvelope({{ zoom }}, {{ x }}, {{ y }})), observations.gbif_id, observations.stable_id, observations.name AS scientific_name
-                FROM ($jinjasql_filtered_observations) AS observations
-            )
-            SELECT st_asmvt(mvtgeom.*) FROM mvtgeom;
+def _build_filter_params(request: HttpRequest) -> dict:
+    """Build common SQL filter params from the request.
+
+    Returns a dict with species_ids, datasets_ids, area_ids,
+    initial_data_import_ids, and optionally status/user_id/start_date/end_date.
     """
-        ).substitute(
-            jinjasql_filtered_observations=JINJASQL_FRAGMENT_FILTER_OBSERVATIONS
-        )
-    )
-
     (
         species_ids,
         datasets_ids,
@@ -141,13 +102,7 @@ def mvt_tiles_observations(
         initial_data_import_ids,
     ) = filters_from_request(request)
 
-    sql_params = {
-        # Map technicalities
-        "limit_to_tile": False,
-        "zoom": zoom,
-        "x": x,
-        "y": y,
-        # Filter included observations
+    params: dict = {
         "species_ids": species_ids,
         "datasets_ids": datasets_ids,
         "area_ids": area_ids,
@@ -155,14 +110,38 @@ def mvt_tiles_observations(
     }
 
     if status_for_user and request.user.is_authenticated:
-        sql_params["status"] = status_for_user
-        sql_params["user_id"] = request.user.pk
+        params["status"] = status_for_user
+        params["user_id"] = request.user.pk
 
-    # More observations filtering
     if start_date is not None:
-        sql_params["start_date"] = start_date.strftime(DB_DATE_EXCHANGE_FORMAT_PYTHON)
+        params["start_date"] = start_date.strftime("%Y-%m-%d")
     if end_date is not None:
-        sql_params["end_date"] = end_date.strftime(DB_DATE_EXCHANGE_FORMAT_PYTHON)
+        params["end_date"] = end_date.strftime("%Y-%m-%d")
+
+    return params
+
+
+def mvt_tiles_observations(
+    request: HttpRequest, zoom: int, x: int, y: int
+) -> HttpResponse:
+    """Tile server, showing non-aggregated observations. Filters are honoured."""
+    sql_template = readable_string(
+        f"""
+            WITH mvtgeom AS (
+                SELECT ST_AsMVTGeom(observations.location, ST_TileEnvelope({{{{ zoom }}}}, {{{{ x }}}}, {{{{ y }}}})), observations.gbif_id, observations.stable_id, observations.name AS scientific_name
+                FROM ({JINJASQL_FRAGMENT_FILTER_OBSERVATIONS}) AS observations
+            )
+            SELECT st_asmvt(mvtgeom.*) FROM mvtgeom;
+    """
+    )
+
+    sql_params = {
+        **_build_filter_params(request),
+        "limit_to_tile": False,
+        "zoom": zoom,
+        "x": x,
+        "y": y,
+    }
 
     return HttpResponse(
         _mvt_query_data(sql_template, sql_params),
@@ -175,49 +154,20 @@ def mvt_tiles_observations_hexagon_grid_aggregated(
 ) -> HttpResponse:
     """Tile server, showing observations aggregated by hexagon squares. Filters are honoured."""
     sql_template = readable_string(
-        Template(
-            """
-            WITH grid AS ($jinjasql_fragment_aggregated_grid),
-                 mvtgeom AS (SELECT ST_AsMVTGeom(geom, ST_TileEnvelope({{ zoom }}, {{ x }}, {{ y }})) AS geom, count FROM grid)
+        f"""
+            WITH grid AS ({JINJASQL_FRAGMENT_AGGREGATED_GRID}),
+                 mvtgeom AS (SELECT ST_AsMVTGeom(geom, ST_TileEnvelope({{{{ zoom }}}}, {{{{ x }}}}, {{{{ y }}}})) AS geom, count FROM grid)
             SELECT st_asmvt(mvtgeom.*) FROM mvtgeom;
     """
-        ).substitute(
-            jinjasql_fragment_aggregated_grid=JINJASQL_FRAGMENT_AGGREGATED_GRID
-        )
     )
 
-    (
-        species_ids,
-        datasets_ids,
-        start_date,
-        end_date,
-        area_ids,
-        status_for_user,
-        initial_data_import_ids,
-    ) = filters_from_request(request)
-
     sql_params = {
-        # Map technicalities
+        **_build_filter_params(request),
         "hex_size_meters": settings.ZOOM_TO_HEX_SIZE[zoom],
         "zoom": zoom,
         "x": x,
         "y": y,
-        # Filter included observations
-        "species_ids": species_ids,
-        "datasets_ids": datasets_ids,
-        "area_ids": area_ids,
-        "initial_data_import_ids": initial_data_import_ids,
     }
-
-    if status_for_user and request.user.is_authenticated:
-        sql_params["status"] = status_for_user
-        sql_params["user_id"] = request.user.pk
-
-    # More observations filtering
-    if start_date is not None:
-        sql_params["start_date"] = start_date.strftime(DB_DATE_EXCHANGE_FORMAT_PYTHON)
-    if end_date is not None:
-        sql_params["end_date"] = end_date.strftime(DB_DATE_EXCHANGE_FORMAT_PYTHON)
 
     return HttpResponse(
         _mvt_query_data(sql_template, sql_params),
@@ -231,87 +181,62 @@ def observation_min_max_in_hex_grid_json(request: HttpRequest):
     This can be useful to dynamically color the grid according to the count
     """
     zoom = extract_int_request(request, "zoom")
-    if zoom is not None:
-        (
-            species_ids,
-            datasets_ids,
-            start_date,
-            end_date,
-            area_ids,
-            status_for_user,
-            initial_data_import_ids,
-        ) = filters_from_request(request)
+    if zoom is None:
+        return JsonResponse({"error": "zoom parameter is required"}, status=400)
 
-        sql_template = readable_string(
-            Template(
-                """
-                WITH grid AS (
-                    SELECT COUNT(*)
-                    FROM (SELECT * FROM hexa_$hex_size_meters) AS obs
-                        LEFT JOIN dashboard_species as species ON obs.species_id = species.id
-                        
-                        {% if area_ids %}
-                        LEFT JOIN (
-                            SELECT mpoly
-                            FROM $areas_table_name
-                            WHERE $areas_table_name.id IN {{ area_ids | inclause }}
-                        ) AS areas ON ST_Within(obs.location, areas.mpoly)
-                        {% endif %}
-                        {% if status == 'unseen' %}
-                            INNER JOIN $observationunseen_table_name
-                            ON obs.id = $observationunseen_table_name.observation_id
-                        {% endif %}
-                    WHERE (
-                        $where_clause
-                    )      
-                GROUP BY obs.geom
+    hex_size = settings.ZOOM_TO_HEX_SIZE[zoom]
+    sql_template = readable_string(
+        f"""
+            WITH grid AS (
+                SELECT COUNT(*)
+                FROM (SELECT * FROM hexa_{hex_size}) AS obs
+                    LEFT JOIN dashboard_species as species ON obs.species_id = species.id
+
+                    {{% if area_ids %}}
+                    LEFT JOIN (
+                        SELECT mpoly
+                        FROM {_TBL_AREAS}
+                        WHERE {_TBL_AREAS}.id IN {{{{ area_ids | inclause }}}}
+                    ) AS areas ON ST_Within(obs.location, areas.mpoly)
+                    {{% endif %}}
+                    {{% if status == 'unseen' %}}
+                        INNER JOIN {_TBL_UNSEEN}
+                        ON obs.id = {_TBL_UNSEEN}.observation_id
+                    {{% endif %}}
+                WHERE (
+                    {WHERE_CLAUSE}
                 )
-                
-                SELECT MIN(count), MAX(count) FROM grid;
-                """
-            ).substitute(
-                hex_size_meters=settings.ZOOM_TO_HEX_SIZE[zoom],
-                areas_table_name=AREAS_TABLE_NAME,
-                observationunseen_table_name=OBSERVATIONUNSEEN_TABLE_NAME,
-                where_clause=WHERE_CLAUSE,
+            GROUP BY obs.geom
             )
-        )
 
-        sql_params = {
-            "species_ids": species_ids,
-            "datasets_ids": datasets_ids,
-            "area_ids": area_ids,
-            "initial_data_import_ids": initial_data_import_ids,
-        }
+            SELECT MIN(count), MAX(count) FROM grid;
+            """
+    )
 
-        if status_for_user and request.user.is_authenticated:
-            sql_params["status"] = status_for_user  # type: ignore
-            sql_params["user_id"] = request.user.pk  # type: ignore
+    sql_params = _build_filter_params(request)
 
-        if start_date:
-            sql_params["start_date"] = start_date.strftime(  # type: ignore
-                DB_DATE_EXCHANGE_FORMAT_PYTHON
-            )
-        if end_date:
-            sql_params["end_date"] = end_date.strftime(DB_DATE_EXCHANGE_FORMAT_PYTHON)  # type: ignore
-
-        j = JinjaSql()
-        query, bind_params = j.prepare_query(sql_template, sql_params)
-        with connection.cursor() as cursor:
-            cursor.execute(query, bind_params)
-            r = cursor.fetchone()
-            return JsonResponse({"min": r[0], "max": r[1]})
+    with _execute_jinjasql(sql_template, sql_params) as cursor:
+        r = cursor.fetchone()
+        return JsonResponse({"min": r[0], "max": r[1]})
 
 
-def _mvt_query_data(sql_template, sql_params):
+def _execute_jinjasql(template: str, params: dict):
+    """Prepare a JinjaSql template and execute it, returning (cursor, connection).
+
+    Use as a context manager via the returned cursor's connection.
+    The caller is responsible for reading results from the cursor.
+    """
+    j = JinjaSql()
+    query, bind_params = j.prepare_query(template, params)
+    cursor = connection.cursor()
+    cursor.execute(query, bind_params)
+    return cursor
+
+
+def _mvt_query_data(sql_template: str, sql_params: dict):
     """Return binary data for the SQL query defined by sql_template and sql_params.
     Only for queries that returns a binary MVT (i.e. starts with "ST_AsMVT")"""
-    j = JinjaSql()
-    query, bind_params = j.prepare_query(sql_template, sql_params)
-    with connection.cursor() as cursor:
-        cursor.execute(query, bind_params)
+    with _execute_jinjasql(sql_template, sql_params) as cursor:
         if cursor.rowcount != 0:
-            data = cursor.fetchone()[0].tobytes()
-        else:
-            data = ""
-        return data
+            return cursor.fetchone()[0].tobytes()
+        return ""

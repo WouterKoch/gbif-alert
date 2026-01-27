@@ -502,11 +502,11 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
         self.assertEqual(response.json()["max"], 1)
 
     def test_min_max_per_hexagon_no_zoom(self):
-        """When zoom is not provided, the view returns None which Django rejects"""
-        with self.assertRaises(ValueError):
-            self.client.get(
-                reverse("dashboard:internal-api:maps:mvt-min-max-per-hexagon"),
-            )
+        """When zoom is not provided, the view returns a 400 error"""
+        response = self.client.get(
+            reverse("dashboard:internal-api:maps:mvt-min-max-per-hexagon"),
+        )
+        self.assertEqual(response.status_code, 400)
 
 
 class MVTServerCommonTestsMixin(object):
