@@ -184,22 +184,29 @@ def create_or_refresh_single_materialized_view(hex_size_meters: int):
     sql_template = readable_string(
         Template(
             """
-        CREATE MATERIALIZED VIEW IF NOT EXISTS hexa_$hex_size_meters AS (
-         SELECT *
+        DROP MATERIALIZED VIEW IF EXISTS hexa_$hex_size_meters;
+        CREATE MATERIALIZED VIEW hexa_$hex_size_meters AS (
+         SELECT
+           obs.id,
+           obs.species_id,
+           obs.source_dataset_id,
+           obs.initial_data_import_id,
+           obs.date,
+           obs.location,
+           hexes.geom AS hex_geom
          FROM dashboard_observation AS obs
          JOIN ST_HexagonGrid($hex_size_meters,
-        ST_SetSRID(ST_EstimatedExtent('dashboard_observation', 'location'),
-        3857)) AS hexes ON ST_Intersects(obs.location, hexes.geom)
+           ST_SetSRID(ST_EstimatedExtent('dashboard_observation', 'location'), 3857)
+         ) AS hexes ON ST_Intersects(obs.location, hexes.geom)
         ) WITH NO DATA;
-        
+
+        CREATE INDEX IF NOT EXISTS hexa_${hex_size_meters}_loc_idx ON hexa_$hex_size_meters USING gist (location);
+        CREATE INDEX IF NOT EXISTS hexa_${hex_size_meters}_hex_idx ON hexa_$hex_size_meters USING gist (hex_geom);
+        CREATE INDEX IF NOT EXISTS hexa_${hex_size_meters}_species_idx ON hexa_$hex_size_meters (species_id);
+
         REFRESH MATERIALIZED VIEW hexa_$hex_size_meters;
-        
-        CREATE INDEX IF NOT EXISTS hexa_$hex_size_meters_idx ON hexa_$hex_size_meters USING gist (location);
         """
-        ).substitute(
-            hex_size_meters=hex_size_meters,
-            hex_size_meters_idx=f"{hex_size_meters}_idx",
-        )
+        ).substitute(hex_size_meters=hex_size_meters)
     )
 
     j = JinjaSql()
