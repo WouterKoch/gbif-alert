@@ -42,7 +42,7 @@ See [INSTALL.md](INSTALL.md) for more information.
 
 # TODO for data migration:
 - migrate
-- run python manage.py prepare_new_seen_unseen
+- run python manage.py migrate_new_seen_unseen
 - run python manage.py refresh_materialized_views
 
 
