@@ -9,8 +9,6 @@ from urllib.parse import unquote
 from django.db import connection
 from django.db.models import QuerySet
 from django.http import HttpRequest, JsonResponse, QueryDict
-from jinjasql import JinjaSql
-
 from dashboard.models import Observation, User
 from dashboard.utils import readable_string
 from django.conf import settings
@@ -181,11 +179,21 @@ def create_or_refresh_single_materialized_view(hex_size_meters: int):
         f"Creating or refreshing materialized view for hex size {hex_size_meters}"
     )
 
+    # Compute hexagon cell coordinates mathematically instead of using ST_HexagonGrid spatial join.
+    # For flat-topped hexagons: width = size * 2, height = size * sqrt(3)
+    # Horizontal spacing = size * 1.5, vertical spacing = size * sqrt(3)
+    # Odd columns are offset by half the vertical spacing.
     sql_template = readable_string(
         Template(
             """
         DROP MATERIALIZED VIEW IF EXISTS hexa_$hex_size_meters;
         CREATE MATERIALIZED VIEW hexa_$hex_size_meters AS (
+         WITH params AS (
+           SELECT
+             $hex_size_meters::float AS size,
+             $hex_size_meters * 1.5 AS horiz_spacing,
+             $hex_size_meters * sqrt(3.0) AS vert_spacing
+         )
          SELECT
            obs.id,
            obs.species_id,
@@ -193,15 +201,13 @@ def create_or_refresh_single_materialized_view(hex_size_meters: int):
            obs.initial_data_import_id,
            obs.date,
            obs.location,
-           hexes.geom AS hex_geom
-         FROM dashboard_observation AS obs
-         JOIN ST_HexagonGrid($hex_size_meters,
-           ST_SetSRID(ST_EstimatedExtent('dashboard_observation', 'location'), 3857)
-         ) AS hexes ON ST_Intersects(obs.location, hexes.geom)
+           floor(ST_X(obs.location) / params.horiz_spacing)::int AS hex_col,
+           floor((ST_Y(obs.location) / params.vert_spacing) - 0.5 * (floor(ST_X(obs.location) / params.horiz_spacing)::int % 2))::int AS hex_row
+         FROM dashboard_observation AS obs, params
         ) WITH NO DATA;
 
         CREATE INDEX IF NOT EXISTS hexa_${hex_size_meters}_loc_idx ON hexa_$hex_size_meters USING gist (location);
-        CREATE INDEX IF NOT EXISTS hexa_${hex_size_meters}_hex_idx ON hexa_$hex_size_meters USING gist (hex_geom);
+        CREATE INDEX IF NOT EXISTS hexa_${hex_size_meters}_hex_idx ON hexa_$hex_size_meters (hex_col, hex_row);
         CREATE INDEX IF NOT EXISTS hexa_${hex_size_meters}_species_idx ON hexa_$hex_size_meters (species_id);
 
         REFRESH MATERIALIZED VIEW hexa_$hex_size_meters;
@@ -209,7 +215,5 @@ def create_or_refresh_single_materialized_view(hex_size_meters: int):
         ).substitute(hex_size_meters=hex_size_meters)
     )
 
-    j = JinjaSql()
-    query, bind_params = j.prepare_query(sql_template, {})
     with connection.cursor() as cursor:
-        cursor.execute(query, bind_params)
+        cursor.execute(sql_template)

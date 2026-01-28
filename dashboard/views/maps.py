@@ -206,7 +206,7 @@ def observation_min_max_in_hex_grid_json(request: HttpRequest):
                 WHERE (
                     {WHERE_CLAUSE}
                 )
-            GROUP BY obs.hex_geom
+            GROUP BY obs.hex_col, obs.hex_row
             )
 
             SELECT MIN(count), MAX(count) FROM grid;
