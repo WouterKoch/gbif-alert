@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gbif-alert"
-version = "1.7.8"
+version = "1.8.0"
 description = "A GBIF-based early alert system"
 authors = ["Nicolas Noé <nicolas@niconoe.eu>"]
 package-mode = false

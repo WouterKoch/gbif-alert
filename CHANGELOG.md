@@ -1,3 +1,10 @@
+# 1.8.0 (2026-02-04)
+
+- Observations are automatically marked as seen after a configurable delay (default: 1 year). Users can configure this delay in their profile settings.
+- When creating a new alert, existing observations matching the alert criteria are automatically marked as seen (to avoid overwhelming users with old data).
+- Major refactor of the seen/unseen mechanism and import process to improve performances.
+- Other internal improvements and code clean-up.
+
 # 1.7.8 (2025-03-13)
 
 - Adjusted the import process for a recent GBIF API metadata change
