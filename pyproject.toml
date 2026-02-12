@@ -26,6 +26,7 @@ django-taggit = "^5.0.1"
 django-modeltranslation = "^0.18.9"
 python-dotenv = "^1.0.0"
 django-gisserver = "^1.2.7"
+setuptools = "*"
 [tool.poetry.group.dev.dependencies]
 selenium = "^4.11.2"
 mypy = "1.4"
@@ -36,7 +37,6 @@ mapbox-vector-tile = "^2.0.1"
 gunicorn = "^25.0.3"
 requests-mock = "^1.10.0"
 tblib = "^1.7.0"
-setuptools = "*"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
