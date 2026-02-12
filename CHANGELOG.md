@@ -1,3 +1,7 @@
+# Current
+
+- Updated backend and frontend dependencies
+
 # 1.8.0 (2026-02-04)
 
 - Observations are automatically marked as seen after a configurable delay (default: 1 year). Users can configure this delay in their profile settings.
