@@ -103,6 +103,19 @@ msgstr ""
 "Pour sélectionner plusieurs éléments, maintenez la touche Ctrl ou 'pomme / "
 "command' enfoncée "
 
+#: dashboard/models.py
+msgid "basis of record"
+msgstr "type d'observation"
+
+#: dashboard/models.py
+msgid ""
+"Optional (no selection = notify me for all basis of records). To select multiple "
+"items, press and hold the Ctrl or Command key and click the items."
+msgstr ""
+"Facultatif (aucune sélection = me notifier pour tous les types d'observation). "
+"Pour sélectionner plusieurs éléments, maintenez la touche Ctrl ou 'pomme / "
+"command' enfoncée "
+
 #: dashboard/models.py:680
 msgid "areas"
 msgstr "zones"
@@ -143,6 +156,10 @@ msgstr "Zones :"
 #: dashboard/templates/dashboard/_alert.html:19
 msgid "Datasets:"
 msgstr "Jeux de données :"
+
+#: dashboard/templates/dashboard/_alert.html
+msgid "Basis of record:"
+msgstr "Type d'observation :"
 
 #: dashboard/templates/dashboard/_alert.html:22
 msgid "Email notifications frequency:"

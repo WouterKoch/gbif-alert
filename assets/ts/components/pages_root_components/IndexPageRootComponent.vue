@@ -42,6 +42,21 @@
 
           <Filter-Selector
               class="mx-2"
+              :button-label-singular="$t('message.basisOfRecord')"
+              :button-label-suffix-plural="$t('message.xSelectedBasisOfRecord')"
+              :no-selection-button-label="$t('message.allBasisOfRecord')"
+              :modal-title="$t('message.basisOfRecordToInclude')"
+              :entries="availableBasisOfRecordAsDataRows"
+              :selector-columns-config="[
+                  {label: $t('message.name'), dataIndex: 0}
+              ]"
+              :label-index="0"
+              :initially-selected-entries-ids="filters.basisOfRecordIds"
+              @entries-changed="changeSelectedBasisOfRecord"
+          ></Filter-Selector>
+
+          <Filter-Selector
+              class="mx-2"
               :button-label-singular="$t('message.area')"
               :button-label-suffix-plural="$t('message.xSelectedAreas')"
               :no-selection-button-label="$t('message.everywhere')"
@@ -101,6 +116,7 @@
 import {defineComponent} from "vue";
 import {
   AreaInformation,
+  BasisOfRecordInformation,
   DashboardFilters,
   DataImportInformation,
   DataRow,
@@ -117,7 +133,7 @@ import Observations from "../Observations.vue";
 import BootstrapAlert from "../BootstrapAlert.vue";
 
 import {debounce, DebouncedFunc} from "lodash";
-import {dateTimeToFilterParam, prepareAreasData, prepareDatasetsData, prepareSpeciesData} from "../../helpers";
+import {dateTimeToFilterParam, prepareAreasData, prepareBasisOfRecordData, prepareDatasetsData, prepareSpeciesData} from "../../helpers";
 
 declare const gbifAlertConfig: FrontEndConfig;
 declare const initialFilters: DashboardFilters;
@@ -126,6 +142,7 @@ interface IndexPageRootComponentData {
   frontendConfig: FrontEndConfig;
   availableSpecies: SpeciesInformation[];
   availableDatasets: DatasetInformation[];
+  availableBasisOfRecord: BasisOfRecordInformation[];
   availableAreas: AreaInformation[];
   availableDataImports: DataImportInformation[];
   filters: DashboardFilters;
@@ -147,6 +164,7 @@ export default defineComponent({
 
       availableSpecies: [],
       availableDatasets: [],
+      availableBasisOfRecord: [],
       availableAreas: [],
       availableDataImports: [],
 
@@ -161,6 +179,9 @@ export default defineComponent({
     },
     availableDatasetsAsDataRows: function (): DataRow[] {
       return prepareDatasetsData(this.availableDatasets);
+    },
+    availableBasisOfRecordAsDataRows: function (): DataRow[] {
+      return prepareBasisOfRecordData(this.availableBasisOfRecord);
     },
     availableAreasAsDataRows: function (): DataRow[] {
       return prepareAreasData(this.availableAreas, this.$t);
@@ -202,6 +223,9 @@ export default defineComponent({
     changeSelectedDatasets: function (datasetsIds: Number[]) {
       this.filters.datasetsIds = datasetsIds;
     },
+    changeSelectedBasisOfRecord: function (basisOfRecordIds: Number[]) {
+      this.filters.basisOfRecordIds = basisOfRecordIds;
+    },
     changeSelectedAreas: function (areasIds: Number[]) {
       this.filters.areaIds = areasIds;
     },
@@ -213,6 +237,13 @@ export default defineComponent({
           .get(this.frontendConfig.apiEndpoints.datasetsListUrl)
           .then((response) => {
             this.availableDatasets = response.data;
+          });
+    },
+    populateAvailableBasisOfRecord: function () {
+      axios
+          .get(this.frontendConfig.apiEndpoints.basisOfRecordListUrl)
+          .then((response) => {
+            this.availableBasisOfRecord = response.data;
           });
     },
     populateAvailableSpecies: function () {
@@ -241,6 +272,7 @@ export default defineComponent({
   mounted: function () {
     this.populateAvailableSpecies();
     this.populateAvailableDatasets();
+    this.populateAvailableBasisOfRecord();
     this.populateAvailableAreas();
     this.populateAvailableDataImports();
   },

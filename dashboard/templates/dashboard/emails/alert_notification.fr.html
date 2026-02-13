@@ -58,6 +58,7 @@
     <li><b>Espèces:</b> {{ alert.species_list|default:"all" }}</li>
     <li><b>Zones:</b> {{ alert.areas_list|default:"all" }}</li>
     <li><b>Jeu de données: </b> {{ alert.datasets_list|default:"all" }}</li>
+    <li><b>Type d'observation : </b> {{ alert.basis_of_record_list|default:"all" }}</li>
     <li>
         <b>Fréquence des notifications par email: </b>
         {{ alert.get_email_notifications_frequency_display }}

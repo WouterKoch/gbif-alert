@@ -62,6 +62,7 @@ export default defineComponent({
       filters: {
         speciesIds: [],
         datasetsIds: [],
+        basisOfRecordIds: [],
         areaIds: [],
         initialDataImportIds: [],
         startDate: null,

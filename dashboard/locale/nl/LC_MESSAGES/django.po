@@ -102,6 +102,18 @@ msgstr ""
 "Optioneel (geen selectie = notificaties voor alle datasets). Om meerdere "
 "items te selecteren, druk op de Ctrl of Command toets en klik de items."
 
+#: dashboard/models.py
+msgid "basis of record"
+msgstr "type waarneming"
+
+#: dashboard/models.py
+msgid ""
+"Optional (no selection = notify me for all basis of records). To select multiple "
+"items, press and hold the Ctrl or Command key and click the items."
+msgstr ""
+"Optioneel (geen selectie = notificaties voor alle types waarneming). Om "
+"meerdere items te selecteren, druk op de Ctrl of Command toets en klik de items."
+
 #: dashboard/models.py:680
 msgid "areas"
 msgstr "gebieden"
@@ -142,6 +154,10 @@ msgstr "Gebieden"
 #: dashboard/templates/dashboard/_alert.html:19
 msgid "Datasets:"
 msgstr "Datasets:"
+
+#: dashboard/templates/dashboard/_alert.html
+msgid "Basis of record:"
+msgstr "Type waarneming:"
 
 #: dashboard/templates/dashboard/_alert.html:22
 msgid "Email notifications frequency:"

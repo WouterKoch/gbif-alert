@@ -11,6 +11,7 @@ from .models import (
     DataImport,
     User,
     Dataset,
+    BasisOfRecord,
     ObservationComment,
     Area,
     Alert,
@@ -84,6 +85,11 @@ class DatasetAdmin(admin.ModelAdmin):
     pass
 
 
+@admin.register(BasisOfRecord)
+class BasisOfRecordAdmin(admin.ModelAdmin):
+    pass
+
+
 @admin.register(Area)
 class AreaAdmin(admin.OSMGeoAdmin):
     def get_queryset(self, request):
@@ -114,6 +120,7 @@ class AlertAdmin(admin.ModelAdmin):
         "unseen_observations_count",
         "species_list",
         "datasets_list",
+        "basis_of_record_list",
         "areas_list",
         "email_notifications_frequency",
     )

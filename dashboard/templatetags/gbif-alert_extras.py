@@ -65,6 +65,7 @@ def js_config_object(context):
         "apiEndpoints": {
             "speciesListUrl": reverse("dashboard:public-api:species-list-json"),
             "datasetsListUrl": reverse("dashboard:internal-api:datasets-list-json"),
+            "basisOfRecordListUrl": reverse("dashboard:internal-api:basis-of-record-list-json"),
             "areasListUrl": reverse("dashboard:internal-api:areas-list-json"),
             "dataImportsListUrl": reverse(
                 "dashboard:internal-api:dataimports-list-json"

@@ -1,6 +1,7 @@
 # Current
 
 - Updated backend and frontend dependencies
+- Allow to filter per basis of record
 
 # 1.8.0 (2026-02-04)
 

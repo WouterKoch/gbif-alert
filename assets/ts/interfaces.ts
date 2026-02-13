@@ -34,6 +34,7 @@ export interface Tab {
 export interface DashboardFilters {
   speciesIds: Number[];
   datasetsIds: Number[];
+  basisOfRecordIds: Number[];
   startDate: string | null;
   endDate: string | null;
   areaIds: Number[];
@@ -56,6 +57,11 @@ export interface DatasetInformation {
   name: string;
 }
 
+export interface BasisOfRecordInformation {
+  id: number;
+  name: string;
+}
+
 export interface AreaInformation {
   id: number;
   name: string;
@@ -72,6 +78,7 @@ export interface DataImportInformation {
 export interface EndpointsUrls {
   speciesListUrl: string;
   datasetsListUrl: string;
+  basisOfRecordListUrl: string;
   areasListUrl: string;
   areaDeleteUrlTemplate: string;
   dataImportsListUrl: string;
