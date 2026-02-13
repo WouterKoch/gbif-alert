@@ -203,6 +203,7 @@ def create_or_refresh_single_materialized_view(hex_size_meters: int):
            obs.id,
            obs.species_id,
            obs.source_dataset_id,
+           obs.basis_of_record_id,
            obs.initial_data_import_id,
            obs.date,
            obs.location,

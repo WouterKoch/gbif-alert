@@ -113,6 +113,26 @@ class AlertTests(TestCase):
         alert.species.add(another_species)
         self.assertFalse(alert.has_unseen_observations)
 
+    def test_basis_of_record_list_empty(self):
+        """basis_of_record_list returns an empty string when no filters are set"""
+        alert = Alert.objects.create(
+            user=self.user, email_notifications_frequency=Alert.DAILY_EMAILS
+        )
+        self.assertEqual(alert.basis_of_record_list, "")
+
+    def test_basis_of_record_list(self):
+        """basis_of_record_list returns a comma-separated list of basis of record names"""
+        alert = Alert.objects.create(
+            user=self.user,
+            name="BOR test alert",
+            email_notifications_frequency=Alert.DAILY_EMAILS,
+        )
+        bor2 = BasisOfRecord.objects.create(name="MACHINE_OBSERVATION")
+        alert.basis_of_record_filters.add(self.basis_of_record, bor2)
+        self.assertEqual(
+            alert.basis_of_record_list, "HUMAN_OBSERVATION, MACHINE_OBSERVATION"
+        )
+
     def test_email_should_be_sent_now_no_notifications(self):
         """When the alert is configured for no emails, it's never a good time for notifications"""
 

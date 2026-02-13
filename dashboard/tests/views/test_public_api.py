@@ -372,6 +372,32 @@ class PublicApiTests(TestCase):
         self.assertIn(json_data["results"][0]["gbifId"], ["1", "3"])
         self.assertIn(json_data["results"][1]["gbifId"], ["1", "3"])
 
+    def test_observations_json_basis_of_record_filter(self):
+        """We can filter observations by basis of record"""
+        # Create a second basis of record and assign it to obs3
+        machine_obs = BasisOfRecord.objects.create(name="MACHINE_OBSERVATION")
+        self.obs3.basis_of_record = machine_obs
+        self.obs3.save()
+
+        base_url = reverse("dashboard:public-api:filtered-observations-data-page")
+
+        # Filter by HUMAN_OBSERVATION: should return obs1 and obs2
+        url_with_params = (
+            f"{base_url}?limit=10&page_number=1&basisOfRecordIds[]={self.basis_of_record.pk}"
+        )
+        response = self.client.get(url_with_params)
+        json_data = response.json()
+        self.assertEqual(json_data["totalResultsCount"], 2)
+
+        # Filter by MACHINE_OBSERVATION: should return obs3 only
+        url_with_params = (
+            f"{base_url}?limit=10&page_number=1&basisOfRecordIds[]={machine_obs.pk}"
+        )
+        response = self.client.get(url_with_params)
+        json_data = response.json()
+        self.assertEqual(json_data["totalResultsCount"], 1)
+        self.assertEqual(json_data["results"][0]["gbifId"], "3")
+
     def test_observations_json_area_filter(self):
         """We filter by a single area"""
         base_url = reverse("dashboard:public-api:filtered-observations-data-page")
@@ -842,6 +868,36 @@ class PublicApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         json_data = response.json()
         self.assertEqual(json_data["count"], 1)
+
+    def test_observations_counter_basis_of_record_filter(self):
+        """Counter is correct when filtering by basis of record"""
+        # Create a second basis of record and assign it to obs3
+        machine_obs = BasisOfRecord.objects.create(name="MACHINE_OBSERVATION")
+        self.obs3.basis_of_record = machine_obs
+        self.obs3.save()
+
+        base_url = reverse("dashboard:public-api:filtered-observations-counter")
+
+        # Filter by HUMAN_OBSERVATION: obs1 + obs2 = 2
+        url_with_params = f"{base_url}?basisOfRecordIds[]={self.basis_of_record.pk}"
+        response = self.client.get(url_with_params)
+        self.assertEqual(response.status_code, 200)
+        json_data = response.json()
+        self.assertEqual(json_data["count"], 2)
+
+        # Filter by MACHINE_OBSERVATION: obs3 = 1
+        url_with_params = f"{base_url}?basisOfRecordIds[]={machine_obs.pk}"
+        response = self.client.get(url_with_params)
+        self.assertEqual(response.status_code, 200)
+        json_data = response.json()
+        self.assertEqual(json_data["count"], 1)
+
+        # Filter by both: all 3 observations
+        url_with_params = f"{base_url}?basisOfRecordIds[]={self.basis_of_record.pk}&basisOfRecordIds[]={machine_obs.pk}"
+        response = self.client.get(url_with_params)
+        self.assertEqual(response.status_code, 200)
+        json_data = response.json()
+        self.assertEqual(json_data["count"], 3)
 
     def test_species_list_json(self):
         """Basic tests on the endpoint: status, length, content, ..."""

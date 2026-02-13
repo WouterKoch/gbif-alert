@@ -297,6 +297,39 @@ class InternalApiAlertTests(TestCase):
         self.assertEqual(self.alert.datasets.count(), 0)
         self.assertEqual(self.alert.areas.count(), 0)
 
+    def test_edit_alert_with_basis_of_record(self):
+        """A user can edit an alert and set basis of record filters"""
+        self.client.login(username="frusciante", password="12345")
+
+        bor = BasisOfRecord.objects.create(name="HUMAN_OBSERVATION")
+
+        post_data = {
+            "id": self.alert.pk,
+            "name": self.alert.name,
+            "speciesIds": [s.pk for s in self.alert.species.all()],
+            "areaIds": [a.pk for a in self.alert.areas.all()],
+            "datasetIds": [d.pk for d in self.alert.datasets.all()],
+            "basisOfRecordIds": [bor.pk],
+            "emailNotificationsFrequency": self.alert.email_notifications_frequency,
+        }
+        response = self._post_to_alert_endpoint(post_data)
+
+        self._assert_alert_endpoint_response(
+            response, {"alertId": self.alert.pk, "errors": {}, "success": True}
+        )
+
+        # Check the alert was updated in the database
+        self.alert.refresh_from_db()
+        self.assertEqual(self.alert.basis_of_record_filters.count(), 1)
+        self.assertEqual(self.alert.basis_of_record_filters.first().name, "HUMAN_OBSERVATION")
+
+        # Verify it appears in the GET response
+        response = self.client.get(
+            reverse("dashboard:internal-api:alert"),
+            {"alert_id": self.alert.pk},
+        )
+        self.assertIn(bor.pk, response.json()["basisOfRecordIds"])
+
 
 @override_settings(
     STATICFILES_STORAGE="django.contrib.staticfiles.storage.StaticFilesStorage"
@@ -595,6 +628,17 @@ class InternalApiTests(TestCase):
         for entry in json_data:
             self.assertIn(entry["name"], ("Test dataset", "Test dataset #2"))
 
+    def test_basis_of_record_list_json(self):
+        response = self.client.get(
+            reverse("dashboard:internal-api:basis-of-record-list-json")
+        )
+        self.assertEqual(response.status_code, 200)
+        json_data = response.json()
+        self.assertEqual(len(json_data), 1)
+        json_data[0]["name"]
+        json_data[0]["id"]
+        self.assertEqual(json_data[0]["name"], "HUMAN_OBSERVATION")
+
     def test_filtered_observations_monthly_histogram_json_no_filters(self):
         # case 1: no filters
         response = self.client.get(
@@ -806,5 +850,38 @@ class InternalApiTests(TestCase):
             response.content.decode("utf-8"),
             [
                 {"year": 2021, "month": 9, "count": 1},
+            ],
+        )
+
+    def test_filtered_observations_monthly_histogram_json_basis_of_record_filter(self):
+        # Create a second basis of record and assign it to obs3
+        machine_obs = BasisOfRecord.objects.create(name="MACHINE_OBSERVATION")
+        self.obs3.basis_of_record = machine_obs
+        self.obs3.save()
+
+        base_url = reverse(
+            "dashboard:internal-api:filtered-observations-monthly-histogram"
+        )
+        # Filter by HUMAN_OBSERVATION only: obs1 (Sept) + obs2 (Sept) = 2 in Sept
+        response = self.client.get(
+            f"{base_url}?basisOfRecordIds[]={self.basis_of_record.pk}"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertJSONEqual(
+            response.content.decode("utf-8"),
+            [
+                {"year": 2021, "month": 9, "count": 2},
+            ],
+        )
+
+        # Filter by MACHINE_OBSERVATION only: obs3 (Oct) = 1 in Oct
+        response = self.client.get(
+            f"{base_url}?basisOfRecordIds[]={machine_obs.pk}"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertJSONEqual(
+            response.content.decode("utf-8"),
+            [
+                {"year": 2021, "month": 10, "count": 1},
             ],
         )
