@@ -11,6 +11,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from dashboard.models import (
+    BasisOfRecord,
     Observation,
     Species,
     DataImport,
@@ -99,6 +100,7 @@ class InternalApiAlertTests(TestCase):
             response.json(),
             {
                 "areaIds": [self.public_area_andenne.pk],
+                "basisOfRecordIds": [],
                 "datasetIds": [self.first_dataset.pk],
                 "emailNotificationsFrequency": "N",
                 "id": self.alert.pk,
@@ -323,6 +325,10 @@ class InternalApiTests(TestCase):
             gbif_dataset_key="aaa7b334-ce0d-4e88-aaae-2e0c138d049f",
         )
 
+        cls.basis_of_record = BasisOfRecord.objects.create(
+            name="HUMAN_OBSERVATION"
+        )
+
         cls.obs1 = Observation.objects.create(
             gbif_id=1,
             occurrence_id="1",
@@ -332,6 +338,7 @@ class InternalApiTests(TestCase):
             initial_data_import=cls.di,
             source_dataset=cls.first_dataset,
             location=Point(5.09513, 50.48941, srid=4326),  # Andenne
+            basis_of_record=cls.basis_of_record,
         )
         cls.obs2 = Observation.objects.create(
             gbif_id=2,
@@ -342,6 +349,7 @@ class InternalApiTests(TestCase):
             initial_data_import=cls.di,
             source_dataset=cls.second_dataset,
             location=Point(4.35978, 50.64728, srid=4326),  # Lillois
+            basis_of_record=cls.basis_of_record,
         )
         cls.obs3 = Observation.objects.create(
             gbif_id=3,
@@ -352,6 +360,7 @@ class InternalApiTests(TestCase):
             initial_data_import=cls.di,
             source_dataset=cls.first_dataset,
             location=Point(4.35978, 50.64728, srid=4326),  # Lillois
+            basis_of_record=cls.basis_of_record,
         )
 
         cls.public_area_andenne = Area.objects.create(

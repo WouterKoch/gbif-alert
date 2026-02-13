@@ -9,6 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from dashboard.models import (
+    BasisOfRecord,
     Species,
     Observation,
     Dataset,
@@ -27,6 +28,10 @@ OCTOBER_8_2021 = datetime.datetime.strptime("2021-10-08", "%Y-%m-%d").date()
 class PublicApiTests(TestCase):
     @classmethod
     def setUpTestData(cls):
+        cls.basis_of_record = BasisOfRecord.objects.create(
+            name="HUMAN_OBSERVATION"
+        )
+
         cls.first_species = Species.objects.create(
             name="Procambarus fallax", gbif_taxon_key=8879526
         )
@@ -55,6 +60,7 @@ class PublicApiTests(TestCase):
             initial_data_import=cls.di,
             source_dataset=cls.first_dataset,
             location=Point(5.09513, 50.48941, srid=4326),  # Andenne
+            basis_of_record=cls.basis_of_record,
         )
         cls.obs2 = Observation.objects.create(
             gbif_id=2,
@@ -65,6 +71,7 @@ class PublicApiTests(TestCase):
             initial_data_import=cls.di,
             source_dataset=cls.second_dataset,
             location=Point(4.35978, 50.64728, srid=4326),  # Lillois
+            basis_of_record=cls.basis_of_record,
         )
         cls.obs3 = Observation.objects.create(
             gbif_id=3,
@@ -75,6 +82,7 @@ class PublicApiTests(TestCase):
             initial_data_import=cls.di,
             source_dataset=cls.first_dataset,
             location=Point(4.35978, 50.64728, srid=4326),  # Lillois
+            basis_of_record=cls.basis_of_record,
         )
 
         cls.public_area_andenne = Area.objects.create(
@@ -170,6 +178,7 @@ class PublicApiTests(TestCase):
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
             location=None,
+            basis_of_record=self.basis_of_record,
         )
         base_url = reverse("dashboard:public-api:filtered-observations-data-page")
         response = self.client.get(f"{base_url}?limit=10&page_number=1")
@@ -525,6 +534,7 @@ class PublicApiTests(TestCase):
             data_import=self.di,
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
+            basis_of_record=self.basis_of_record,
         )
 
         base_url = reverse("dashboard:public-api:filtered-observations-data-page")
@@ -555,6 +565,7 @@ class PublicApiTests(TestCase):
             data_import=self.di,
             initial_data_import=self.di,
             source_dataset=third_dataset,
+            basis_of_record=self.basis_of_record,
         )
         base_url = reverse("dashboard:public-api:filtered-observations-data-page")
         json_data = self.client.get(
@@ -733,6 +744,7 @@ class PublicApiTests(TestCase):
             data_import=self.di,
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
+            basis_of_record=self.basis_of_record,
         )
         Observation.objects.create(
             gbif_id=1001,
@@ -742,6 +754,7 @@ class PublicApiTests(TestCase):
             data_import=self.di,
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
+            basis_of_record=self.basis_of_record,
         )
         Observation.objects.create(
             gbif_id=1002,
@@ -751,6 +764,7 @@ class PublicApiTests(TestCase):
             data_import=self.di,
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
+            basis_of_record=self.basis_of_record,
         )
 
         base_url = reverse("dashboard:public-api:filtered-observations-counter")

@@ -20,6 +20,7 @@ from dashboard.models import (
     User,
     Alert,
     ObservationUnseen,
+    BasisOfRecord,
 )
 
 THIS_SCRIPT_PATH = Path(__file__).parent
@@ -105,6 +106,7 @@ class ImportObservationsTest(TransactionTestCase):
         # This observation will be replaced during the import process
         # because there's a row with the same occurrence_id and dataset_key in the DwC-A
         self.initial_di = DataImport.objects.create(start=timezone.now())
+        self.basis_of_record = BasisOfRecord.objects.create(name="HUMAN_OBSERVATION")
         self.observation_unseen_to_be_replaced = Observation.objects.create(
             gbif_id=1,
             occurrence_id="https://www.inaturalist.org/observations/33366292",
@@ -114,6 +116,7 @@ class ImportObservationsTest(TransactionTestCase):
             data_import=self.initial_di,
             initial_data_import=self.initial_di,
             location=Point(5.09513, 50.48941, srid=4326),
+            basis_of_record=self.basis_of_record,
         )
 
         self.observation_seen_to_be_replaced = Observation.objects.create(
@@ -125,6 +128,7 @@ class ImportObservationsTest(TransactionTestCase):
             data_import=self.initial_di,
             initial_data_import=self.initial_di,
             location=Point(5.09513, 50.48941, srid=4326),
+            basis_of_record=self.basis_of_record,
         )
 
         # This one has no equivalent in the DwC-A
@@ -137,6 +141,7 @@ class ImportObservationsTest(TransactionTestCase):
             data_import=self.initial_di,
             initial_data_import=self.initial_di,
             location=Point(5.09513, 50.48941, srid=4326),
+            basis_of_record=self.basis_of_record,
         )
 
         ObservationComment.objects.create(
@@ -327,7 +332,7 @@ class ImportObservationsTest(TransactionTestCase):
             occ.source_dataset.name, "iNaturalist research-grade observations"
         )
         self.assertEqual(occ.recorded_by, "Nicolas Noé")
-        self.assertEqual(occ.basis_of_record, "HUMAN_OBSERVATION")
+        self.assertEqual(occ.basis_of_record.name, "HUMAN_OBSERVATION")
         self.assertEqual(occ.locality, "Lillois")
         self.assertEqual(occ.municipality, "Braine L'alleud")
         self.assertEqual(occ.individual_count, 1)

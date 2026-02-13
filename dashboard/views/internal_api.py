@@ -4,6 +4,7 @@ All endpoints that deal with filtered observations takes the following GET param
 will):
     - speciesIds[]: one or several species IDs. Example query string: ?speciesIds[]=1&speciesIds[]=2
     - datasetsIds[]: one or several dataset IDs. Example query string: ?datasetsIds[]=1&datasetsIds[]=2
+    - basisOfRecordIds[]: one or several basis of record IDs. Example: ?basisOfRecordIds[]=1&basisOfRecordIds[]=2
     - startDate: start date (inclusive), in '%Y-%m-%d' format. Example: 2021-07-31, 1981-08-02
     - endDate: end date (inclusive), in '%Y-%m-%d' format. Example: 2021-07-31, 1981-08-02
     - areaIds[]: one or several area IDs. Same format than speciesIds and datasetsIds
@@ -31,6 +32,7 @@ from django.utils.translation import gettext as _
 
 from dashboard.models import (
     Dataset,
+    BasisOfRecord,
     Area,
     Alert,
     DataImport,
@@ -84,6 +86,14 @@ def datasets_list_json(_) -> JsonResponse:
     Order: undetermined
     """
     return model_to_json_list(Dataset)
+
+
+def basis_of_record_list_json(_) -> JsonResponse:
+    """A list of all basis of record values known to the system, in JSON format
+
+    Order: undetermined
+    """
+    return model_to_json_list(BasisOfRecord)
 
 
 def filtered_observations_monthly_histogram_json(request: HttpRequest):
@@ -143,6 +153,7 @@ def _create_or_update_alert(
     species_ids: list[int],
     area_ids: list[int],
     dataset_ids: list[int],
+    basis_of_record_ids: list[int],
     email_notifications_frequency: str,
     user: User,
     alert_id: int | None = None,
@@ -176,6 +187,8 @@ def _create_or_update_alert(
         alert.areas.add(*area_ids)
         alert.datasets.clear()
         alert.datasets.add(*dataset_ids)
+        alert.basis_of_record_filters.clear()
+        alert.basis_of_record_filters.add(*basis_of_record_ids)
 
     return JsonResponse(
         {"alertId": alert.pk, "success": len(errors) == 0, "errors": errors}
@@ -199,6 +212,7 @@ def alert(
             species_ids=alert_data["speciesIds"],
             area_ids=alert_data["areaIds"],
             dataset_ids=alert_data["datasetIds"],
+            basis_of_record_ids=alert_data.get("basisOfRecordIds", []),
             email_notifications_frequency=alert_data["emailNotificationsFrequency"],
             user=request.user,
             alert_id=alert_id,

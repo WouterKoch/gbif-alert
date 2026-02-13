@@ -11,6 +11,7 @@ from dashboard.models import (
     Species,
     Dataset,
     ObservationComment,
+    BasisOfRecord,
 )
 
 SEPTEMBER_13_2021 = datetime.datetime.strptime("2021-09-13", "%Y-%m-%d").date()
@@ -32,6 +33,8 @@ class ObservationCommentTestCase(TestCase):
 
         di = DataImport.objects.create(start=timezone.now())
 
+        cls.basis_of_record = BasisOfRecord.objects.create(name="HUMAN_OBSERVATION")
+
         cls.observation = Observation.objects.create(
             gbif_id=1,
             occurrence_id="1",
@@ -46,6 +49,7 @@ class ObservationCommentTestCase(TestCase):
                 gbif_dataset_key="4fa7b334-ce0d-4e88-aaae-2e0c138d049e",
             ),
             location=Point(5.09513, 50.48941, srid=4326),  # Andenne
+            basis_of_record=cls.basis_of_record,
         )
 
         # No ObservationView created in setupTestData(): at the beginning of test_* methods, the observation is unseen

@@ -7,6 +7,7 @@ from django.utils import timezone
 from dashboard.models import (
     User,
     Alert,
+    BasisOfRecord,
     Observation,
     Species,
     DataImport,
@@ -31,6 +32,10 @@ class AlertTests(TestCase):
             email="jason@grandaddy.com",
         )
 
+        cls.basis_of_record = BasisOfRecord.objects.create(
+            name="HUMAN_OBSERVATION"
+        )
+
         di = DataImport.objects.create(start=timezone.now())
 
         cls.observation = Observation.objects.create(
@@ -47,6 +52,7 @@ class AlertTests(TestCase):
                 gbif_dataset_key="4fa7b334-ce0d-4e88-aaae-2e0c138d049e",
             ),
             location=Point(5.09513, 50.48941, srid=4326),  # Andenne
+            basis_of_record=cls.basis_of_record,
         )
 
         # At the beginning of test_* methods, the observation is unseen

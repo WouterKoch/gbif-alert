@@ -26,6 +26,7 @@ from dashboard.models import (
     Observation,
     Alert,
     ObservationUnseen,
+    BasisOfRecord,
 )
 from dashboard.views.helpers import create_or_refresh_all_materialized_views
 
@@ -105,6 +106,8 @@ class SeleniumTestsCommon(StaticLiveServerTestCase):
             gbif_dataset_key="aaa7b334-ce0d-4e88-aaae-2e0c138d049f",
         )
 
+        self.basis_of_record = BasisOfRecord.objects.create(name="HUMAN_OBSERVATION")
+
         self.obs_1 = Observation.objects.create(
             gbif_id=1,
             occurrence_id="1",
@@ -114,6 +117,7 @@ class SeleniumTestsCommon(StaticLiveServerTestCase):
             initial_data_import=di,
             source_dataset=self.first_dataset,
             location=Point(5.09513, 50.48941, srid=4326),
+            basis_of_record=self.basis_of_record,
         )
         self.obs_2 = Observation.objects.create(
             gbif_id=2,
@@ -124,6 +128,7 @@ class SeleniumTestsCommon(StaticLiveServerTestCase):
             initial_data_import=di,
             source_dataset=self.second_dataset,
             location=Point(4.35978, 50.64728, srid=4326),
+            basis_of_record=self.basis_of_record,
         )
         self.obs_3 = Observation.objects.create(
             gbif_id=3,
@@ -134,6 +139,7 @@ class SeleniumTestsCommon(StaticLiveServerTestCase):
             initial_data_import=di,
             source_dataset=self.second_dataset,
             location=Point(5.09513, 50.48941, srid=4326),
+            basis_of_record=self.basis_of_record,
         )
 
         # Obs 1 (and only obs_1) has been seen by the user

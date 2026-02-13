@@ -27,6 +27,9 @@ WHERE_CLAUSE = readable_string(
         {{% if datasets_ids %}}
             AND obs.source_dataset_id IN {{{{ datasets_ids | inclause }}}}
         {{% endif %}}
+        {{% if basis_of_record_ids %}}
+            AND obs.basis_of_record_id IN {{{{ basis_of_record_ids | inclause }}}}
+        {{% endif %}}
         {{% if start_date %}}
             AND obs.date >= TO_DATE({{{{ start_date }}}}, 'YYYY-MM-DD')
         {{% endif %}}
@@ -95,6 +98,7 @@ def _build_filter_params(request: HttpRequest) -> dict:
     (
         species_ids,
         datasets_ids,
+        basis_of_record_ids,
         start_date,
         end_date,
         area_ids,
@@ -105,6 +109,7 @@ def _build_filter_params(request: HttpRequest) -> dict:
     params: dict = {
         "species_ids": species_ids,
         "datasets_ids": datasets_ids,
+        "basis_of_record_ids": basis_of_record_ids,
         "area_ids": area_ids,
         "initial_data_import_ids": initial_data_import_ids,
     }

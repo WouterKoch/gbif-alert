@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from dashboard.models import (
+    BasisOfRecord,
     Observation,
     Species,
     DataImport,
@@ -26,6 +27,10 @@ class MapsTestDataMixin(object):
 
     @classmethod
     def setUpTestData(cls):
+        cls.basis_of_record = BasisOfRecord.objects.create(
+            name="HUMAN_OBSERVATION"
+        )
+
         cls.first_species = Species.objects.create(
             name="Procambarus fallax", gbif_taxon_key=8879526
         )
@@ -51,6 +56,7 @@ class MapsTestDataMixin(object):
             initial_data_import=cls.di,
             source_dataset=cls.first_dataset,
             location=Point(5.09513, 50.48941, srid=4326),  # Andenne
+            basis_of_record=cls.basis_of_record,
         )
         Observation.objects.create(
             gbif_id=2,
@@ -61,6 +67,7 @@ class MapsTestDataMixin(object):
             initial_data_import=cls.di,
             source_dataset=cls.second_dataset,
             location=Point(4.35978, 50.64728, srid=4326),  # Lillois
+            basis_of_record=cls.basis_of_record,
         )
 
         cls.public_area_andenne = Area.objects.create(
@@ -154,6 +161,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois, bakkerij
+            basis_of_record=self.basis_of_record,
         )
 
         create_or_refresh_materialized_views(zoom_levels=[8, 1, 13])
@@ -193,6 +201,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois, bakkerij
+            basis_of_record=self.basis_of_record,
         )
 
         create_or_refresh_materialized_views(zoom_levels=[8])
@@ -226,6 +235,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
             location=Point(5.095610, 50.48800, srid=4326),
+            basis_of_record=self.basis_of_record,
         )
 
         create_or_refresh_materialized_views(zoom_levels=[8])
@@ -249,6 +259,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=self.di,
             source_dataset=self.second_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois, bakkerij
+            basis_of_record=self.basis_of_record,
         )
 
         create_or_refresh_materialized_views(zoom_levels=[8])
@@ -282,6 +293,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
             location=Point(5.095610, 50.48800, srid=4326),
+            basis_of_record=self.basis_of_record,
         )
 
         create_or_refresh_materialized_views(zoom_levels=[8])
@@ -315,6 +327,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=self.di,
             source_dataset=self.second_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois, bakkerij
+            basis_of_record=self.basis_of_record,
         )
 
         self.client.login(username="frusciante", password="12345")
@@ -342,6 +355,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=self.di,
             source_dataset=self.second_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois, bakkerij
+            basis_of_record=self.basis_of_record,
         )
 
         create_or_refresh_materialized_views(zoom_levels=[8])
@@ -368,6 +382,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=self.di,
             source_dataset=self.second_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois, bakkerij
+            basis_of_record=self.basis_of_record,
         )
 
         create_or_refresh_materialized_views(zoom_levels=[8])
@@ -419,6 +434,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=second_di,
             source_dataset=self.first_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois
+            basis_of_record=self.basis_of_record,
         )
 
         create_or_refresh_materialized_views(zoom_levels=[8])
@@ -458,6 +474,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois
+            basis_of_record=self.basis_of_record,
         )
 
         create_or_refresh_materialized_views(zoom_levels=[8])
@@ -489,6 +506,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois
+            basis_of_record=self.basis_of_record,
         )
 
         create_or_refresh_materialized_views(zoom_levels=[8])
@@ -803,6 +821,7 @@ class MVTServerSingleObsTests(MapsTestDataMixin, MVTServerCommonTestsMixin, Test
             initial_data_import=second_di,
             source_dataset=self.first_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois
+            basis_of_record=self.basis_of_record,
         )
 
         base_url = reverse(
@@ -1185,6 +1204,7 @@ class MVTServerAggregatedObsTests(
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
             location=Point(4.35978, 50.64728, srid=4326),  # Lillois
+            basis_of_record=self.basis_of_record,
         )
         Observation.objects.create(
             gbif_id=1001,
@@ -1195,6 +1215,7 @@ class MVTServerAggregatedObsTests(
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
             location=Point(4.35978, 50.64728, srid=4326),  # Lillois
+            basis_of_record=self.basis_of_record,
         )
         Observation.objects.create(
             gbif_id=1002,
@@ -1205,6 +1226,7 @@ class MVTServerAggregatedObsTests(
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
             location=Point(4.35978, 50.64728, srid=4326),  # Lillois
+            basis_of_record=self.basis_of_record,
         )
 
         # Case 1: Large-scale view: a single hex over Wallonia
@@ -1395,6 +1417,7 @@ class MVTServerAggregatedObsTests(
             initial_data_import=second_di,
             source_dataset=self.first_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois
+            basis_of_record=self.basis_of_record,
         )
 
         base_url = reverse(

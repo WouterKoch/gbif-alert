@@ -97,6 +97,7 @@ def filtered_observations_from_request(request: HttpRequest) -> QuerySet[Observa
     (
         species_ids,
         datasets_ids,
+        basis_of_record_ids,
         start_date,
         end_date,
         areas_ids,
@@ -111,6 +112,7 @@ def filtered_observations_from_request(request: HttpRequest) -> QuerySet[Observa
     return Observation.objects.filtered_from_my_params(
         species_ids=species_ids,
         datasets_ids=datasets_ids,
+        basis_of_record_ids=basis_of_record_ids,
         start_date=start_date,
         end_date=end_date,
         areas_ids=areas_ids,
@@ -125,6 +127,7 @@ def filters_from_request(
 ) -> tuple[
     list[int],
     list[int],
+    list[int],
     datetime.date | None,
     datetime.date | None,
     list[int],
@@ -133,6 +136,7 @@ def filters_from_request(
 ]:
     species_ids = extract_int_array_request(request, "speciesIds[]")
     datasets_ids = extract_int_array_request(request, "datasetsIds[]")
+    basis_of_record_ids = extract_int_array_request(request, "basisOfRecordIds[]")
     start_date = extract_date_request(request, "startDate")
     end_date = extract_date_request(request, "endDate")
     areas_ids = extract_int_array_request(request, "areaIds[]")
@@ -144,6 +148,7 @@ def filters_from_request(
     return (
         species_ids,
         datasets_ids,
+        basis_of_record_ids,
         start_date,
         end_date,
         areas_ids,
