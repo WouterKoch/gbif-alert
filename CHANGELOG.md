@@ -1,7 +1,9 @@
 # Current
 
+- Allow to filter observations per basis of record
+- By default, (at page load), only unseen observations are shown
 - Updated backend and frontend dependencies
-- Allow to filter per basis of record
+- Internal improvements (https://github.com/riparias/gbif-alert/issues/282)
 
 # 1.8.0 (2026-02-04)
 

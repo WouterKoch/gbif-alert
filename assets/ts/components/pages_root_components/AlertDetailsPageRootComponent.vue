@@ -67,7 +67,7 @@ export default defineComponent({
         initialDataImportIds: [],
         startDate: null,
         endDate: null,
-        status: null,
+        status: "unseen",
       },
       debouncedUpdateDateFilters: null,
       showInProgressMessage: false,

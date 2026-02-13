@@ -498,11 +498,13 @@ class SeleniumTests(SeleniumTestsCommon):
         obs_table = self.selenium.find_element(By.ID, "gbif-alert-observations-table")
         obs_table_body = obs_table.find_element(By.TAG_NAME, "tbody")
         result_rows = obs_table_body.find_elements(By.TAG_NAME, "tr")
-        self.assertEqual(len(result_rows), 3)  # 3 result rows
-        unseen_badges = obs_table_body.find_elements(
-            By.CLASS_NAME, "gbif-alert-unseen-badge"
+        self.assertEqual(
+            len(result_rows), 2
+        )  # 2 unseen result rows, selected by default
+        seen_rows = obs_table_body.find_elements(
+            By.CLASS_NAME, "gbif-alert-seen-row-marker"
         )
-        self.assertEqual(len(unseen_badges), 2)
+        self.assertEqual(len(seen_rows), 1)
 
         # Action 4: select "seen"
         observation_status_selector.find_element(By.ID, "label-btnRadioSeen").click()

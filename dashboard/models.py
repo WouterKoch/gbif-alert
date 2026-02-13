@@ -1013,7 +1013,7 @@ class Alert(models.Model):
             "areaIds": [a.pk for a in self.areas.all()],
             "startDate": None,
             "endDate": None,
-            "status": None,
+            "status": "unseen",
         }
 
     @property

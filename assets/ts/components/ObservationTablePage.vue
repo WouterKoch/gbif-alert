@@ -9,6 +9,7 @@
           "
           class="badge rounded-pill bg-danger gbif-alert-unseen-badge">{{ $t("message.unseen")}}</span
         >
+        <span v-else class="gbif-alert-seen-row-marker"></span>
       </td>
       <td>
         <a :href="occ.url">{{ occ.gbifId }}</a>
