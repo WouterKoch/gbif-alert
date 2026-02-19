@@ -295,7 +295,9 @@ def create_unseen_observations(observation_queryset: QuerySet["Observation"]) ->
                 has_alert_without_dataset_filter = True
             all_dataset_ids.update(dataset_ids)
 
-            basis_of_record_ids = {b.pk for b in alert.basis_of_record_filters.all()}  # Prefetched
+            basis_of_record_ids = {
+                b.pk for b in alert.basis_of_record_filters.all()
+            }  # Prefetched
             if not basis_of_record_ids:
                 has_alert_without_basis_of_record_filter = True
             all_basis_of_record_ids.update(basis_of_record_ids)
@@ -531,6 +533,11 @@ class Observation(models.Model):
     locality = models.TextField(blank=True)
     municipality = models.TextField(blank=True)
     basis_of_record = models.ForeignKey(BasisOfRecord, on_delete=models.CASCADE)
+    identification_verification_status = models.CharField(
+        max_length=255, blank=True
+    )  # As provided by GBIF, not normalized
+    verified = models.BooleanField(default=False)
+
     recorded_by = models.TextField(blank=True)
     coordinate_uncertainty_in_meters = models.FloatField(blank=True, null=True)
     references = models.TextField(blank=True)

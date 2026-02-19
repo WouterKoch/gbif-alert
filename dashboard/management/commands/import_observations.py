@@ -1,5 +1,6 @@
 import argparse
 import datetime
+import json
 import logging
 import os
 import tempfile
@@ -32,6 +33,18 @@ from dashboard.views.helpers import (
 )
 
 BULK_CREATE_CHUNK_SIZE = 10000
+
+_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+_VERIFICATION_STATUS_JSON = os.path.join(
+    _THIS_DIR, "..", "..", "verification_status_classification.json"
+)
+
+
+def load_verification_status_hash() -> dict[str, bool]:
+    """Load verification_status_classification.json into a dict mapping status string → verified bool."""
+    with open(_VERIFICATION_STATUS_JSON, encoding="utf-8") as f:
+        entries = json.load(f)
+    return {entry["key"]: entry["verified"] for entry in entries}
 
 
 def species_for_row(row: CoreRow, hash_species) -> Species:
@@ -107,6 +120,7 @@ def build_single_observation(
     hash_datasets: dict[str, Dataset],
     hash_species: dict[str, Species],
     hash_basis_of_record: dict[str, BasisOfRecord],
+    hash_verification_status: dict[str, bool],
 ) -> Observation:
     """Import a single observation into the database
 
@@ -167,6 +181,10 @@ def build_single_observation(
         except ValueError:
             coordinates_uncertainty = None
 
+        identification_verification_status_str = get_string_data(
+            row, field_name=qn("identificationVerificationStatus")
+        )[:255]
+
         new_observation = Observation(
             gbif_id=int(
                 get_string_data(row, field_name="http://rs.gbif.org/terms/1.0/gbifID")
@@ -180,7 +198,13 @@ def build_single_observation(
             individual_count=individual_count,
             locality=get_string_data(row, field_name=qn("locality")),
             municipality=get_string_data(row, field_name=qn("municipality")),
-            basis_of_record=hash_basis_of_record[get_string_data(row, field_name=qn("basisOfRecord"))],
+            basis_of_record=hash_basis_of_record[
+                get_string_data(row, field_name=qn("basisOfRecord"))
+            ],
+            identification_verification_status=identification_verification_status_str,
+            verified=hash_verification_status.get(
+                identification_verification_status_str, False
+            ),
             recorded_by=get_string_data(row, field_name=qn("recordedBy")),
             coordinate_uncertainty_in_meters=coordinates_uncertainty,
             references=get_string_data(row, field_name=qn("references")),
@@ -234,6 +258,7 @@ class Command(BaseCommand):
         hash_table_datasets: dict,
         hash_table_species: dict,
         hash_table_basis_of_record: dict,
+        hash_table_verification_status: dict[str, bool],
     ) -> int:
         """:return the number of skipped observations"""
         skipped_observations_counter = 0
@@ -247,6 +272,7 @@ class Command(BaseCommand):
                     hash_datasets=hash_table_datasets,
                     hash_species=hash_table_species,
                     hash_basis_of_record=hash_table_basis_of_record,
+                    hash_verification_status=hash_table_verification_status,
                 )
                 observations_to_insert.append(obs)
                 self.stdout.write(".", ending="")
@@ -381,11 +407,15 @@ class Command(BaseCommand):
             )
 
             # 3. Pre-import all the datasets and basis of record values
-            self.log_with_time("3. Pre-importing all datasets and basis of record values")
+            self.log_with_time(
+                "3. Pre-importing all datasets and basis of record values"
+            )
             # 3.1 Get all the dataset keys / names and basis of record values from the DwCA
             datasets_referenced_in_dwca = dict()
             basis_of_record_values_in_dwca: set[str] = set()
-            self.log_with_time("3.1 Reading the DwCA to get the dataset keys and basis of record values")
+            self.log_with_time(
+                "3.1 Reading the DwCA to get the dataset keys and basis of record values"
+            )
             with DwCAReader(source_data_path) as dwca:
                 for core_row in dwca:
                     gbif_dataset_key = get_string_data(
@@ -437,7 +467,10 @@ class Command(BaseCommand):
             for species in Species.objects.all():
                 hash_table_species[species.gbif_taxon_key] = species
 
-            # 5. Import data from DwCA (observations + GBIF download ID)
+            # 5. Build verification status hash and import data from DwCA
+            self.log_with_time("5. Building verification status hash")
+            hash_table_verification_status = load_verification_status_hash()
+
             with DwCAReader(source_data_path) as dwca:
                 current_data_import.set_gbif_download_id(
                     extract_gbif_download_id_from_dwca(dwca)
@@ -450,6 +483,7 @@ class Command(BaseCommand):
                         hash_table_datasets,
                         hash_table_species,
                         hash_table_basis_of_record,
+                        hash_table_verification_status,
                     )
                 )
 

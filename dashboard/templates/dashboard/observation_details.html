@@ -52,6 +52,12 @@
                         <a href="{{ observation.source_dataset.gbif_dataset_key|gbif_dataset_url }}">{{ observation.source_dataset.name }}</a>
                     </dd>
 
+                    <dt>Verified</dt>
+                    <dd>{{ observation.verified }}</dd>
+
+                    <dt>IdentificationVerificationStatus (raw GBIF value)</dt>
+                    <dd>{{ observation.identification_verification_status }}</dd>
+
                     <dt>Basis of record</dt>
                     <dd>{{ observation.basis_of_record }}</dd>
 
