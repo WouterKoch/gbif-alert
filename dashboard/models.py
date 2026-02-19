@@ -285,6 +285,9 @@ def create_unseen_observations(observation_queryset: QuerySet["Observation"]) ->
         has_alert_without_dataset_filter = False
         has_alert_without_basis_of_record_filter = False
         has_alert_without_area_filter = False
+        has_alert_without_verified_filter = False
+        wants_verified = False
+        wants_unverified = False
 
         for alert in user_alerts:
             species_ids = {s.pk for s in alert.species.all()}  # Prefetched
@@ -306,6 +309,13 @@ def create_unseen_observations(observation_queryset: QuerySet["Observation"]) ->
             if not area_ids:
                 has_alert_without_area_filter = True
             all_area_ids.update(area_ids)
+
+            if alert.verified_filter == Alert.VERIFIED_FILTER_ALL:
+                has_alert_without_verified_filter = True
+            elif alert.verified_filter == Alert.VERIFIED_FILTER_VERIFIED_ONLY:
+                wants_verified = True
+            elif alert.verified_filter == Alert.VERIFIED_FILTER_UNVERIFIED_ONLY:
+                wants_unverified = True
 
         # Build a single query for observations matching ANY of the user's alerts
         # This is a simplified/conservative approach: we check if observation matches
@@ -334,6 +344,12 @@ def create_unseen_observations(observation_queryset: QuerySet["Observation"]) ->
                     location__within=combined_areas
                 )
 
+        if not has_alert_without_verified_filter:
+            if wants_verified and not wants_unverified:
+                matching_obs_qs = matching_obs_qs.filter(verified=True)
+            elif wants_unverified and not wants_verified:
+                matching_obs_qs = matching_obs_qs.filter(verified=False)
+
         # Collect unseen entries for bulk creation
         for obs in matching_obs_qs:
             unseen_to_create.append(ObservationUnseen(observation=obs, user=user))
@@ -355,6 +371,7 @@ class ObservationManager(models.Manager["Observation"]):
         status_for_user: str | None,
         initial_data_import_ids: list[int],
         user: User | None,  # mandatory if status_for_user is set
+        verified_filter: str | None = None,
     ) -> QuerySet["Observation"]:
         # !! IMPORTANT !! Make sure the observation filtering here is equivalent to what's done in
         # views.maps.JINJASQL_FRAGMENT_FILTER_OBSERVATIONS. Otherwise, observations returned on the map and on other
@@ -390,6 +407,11 @@ class ObservationManager(models.Manager["Observation"]):
                 qs = qs.exclude(observationunseen__in=ous)
             elif status_for_user == "unseen":
                 qs = qs.filter(observationunseen__in=ous)
+
+        if verified_filter == "verified":
+            qs = qs.filter(verified=True)
+        elif verified_filter == "unverified":
+            qs = qs.filter(verified=False)
 
         return qs
 
@@ -919,6 +941,16 @@ class Alert(models.Model):
     WEEKLY_EMAILS = "W"
     MONTHLY_EMAILS = "M"
 
+    VERIFIED_FILTER_ALL = "all"
+    VERIFIED_FILTER_VERIFIED_ONLY = "verified"
+    VERIFIED_FILTER_UNVERIFIED_ONLY = "unverified"
+
+    VERIFIED_FILTER_CHOICES = [
+        (VERIFIED_FILTER_ALL, "All observations"),
+        (VERIFIED_FILTER_VERIFIED_ONLY, "Verified only"),
+        (VERIFIED_FILTER_UNVERIFIED_ONLY, "Unverified only"),
+    ]
+
     EMAIL_NOTIFICATION_CHOICES = [
         (NO_EMAILS, _("No emails")),
         (DAILY_EMAILS, _("Daily")),
@@ -980,6 +1012,12 @@ class Alert(models.Model):
         verbose_name=_("email notifications frequency"),
     )
 
+    verified_filter = models.CharField(
+        max_length=10,
+        choices=VERIFIED_FILTER_CHOICES,
+        default=VERIFIED_FILTER_ALL,
+    )
+
     last_email_sent_on = models.DateTimeField(blank=True, null=True, default=None)
 
     class Meta:
@@ -1003,6 +1041,10 @@ class Alert(models.Model):
         )
 
     @property
+    def verified_filter_display(self) -> str:
+        return dict(self.VERIFIED_FILTER_CHOICES).get(self.verified_filter, self.verified_filter)
+
+    @property
     def species_list(self) -> str:
         return ", ".join(self.species.order_by("name").values_list("name", flat=True))
 
@@ -1021,6 +1063,7 @@ class Alert(models.Model):
             "startDate": None,
             "endDate": None,
             "status": "unseen",
+            "verifiedFilter": self.verified_filter,
         }
 
     @property
@@ -1033,6 +1076,7 @@ class Alert(models.Model):
             "basisOfRecordIds": [b.pk for b in self.basis_of_record_filters.all()],
             "areaIds": [a.pk for a in self.areas.all()],
             "emailNotificationsFrequency": self.email_notifications_frequency,
+            "verifiedFilter": self.verified_filter,
         }
 
     def observations(self) -> QuerySet[Observation]:
@@ -1048,6 +1092,7 @@ class Alert(models.Model):
             initial_data_import_ids=[],
             status_for_user=None,
             user=self.user,
+            verified_filter=self.verified_filter,
         )
 
     def unseen_observations(self) -> QuerySet[Observation]:
@@ -1062,6 +1107,7 @@ class Alert(models.Model):
             initial_data_import_ids=[],
             status_for_user="unseen",
             user=self.user,
+            verified_filter=self.verified_filter,
         )
 
     def unseen_observations_sample(self, sample_size=10) -> QuerySet[Observation]:

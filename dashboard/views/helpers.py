@@ -103,6 +103,7 @@ def filtered_observations_from_request(request: HttpRequest) -> QuerySet[Observa
         areas_ids,
         status_for_user,
         initial_data_import_ids,
+        verified_filter,
     ) = filters_from_request(request)
 
     user = None
@@ -119,6 +120,7 @@ def filtered_observations_from_request(request: HttpRequest) -> QuerySet[Observa
         status_for_user=status_for_user,
         initial_data_import_ids=initial_data_import_ids,
         user=user,
+        verified_filter=verified_filter,
     )
 
 
@@ -133,6 +135,7 @@ def filters_from_request(
     list[int],
     str | None,
     list[int],
+    str | None,
 ]:
     species_ids = extract_int_array_request(request, "speciesIds[]")
     datasets_ids = extract_int_array_request(request, "datasetsIds[]")
@@ -144,6 +147,7 @@ def filters_from_request(
     initial_data_import_ids = extract_int_array_request(
         request, "initialDataImportIds[]"
     )
+    verified_filter = extract_str_request(request, "verifiedFilter")
 
     return (
         species_ids,
@@ -154,6 +158,7 @@ def filters_from_request(
         areas_ids,
         status_for_user,
         initial_data_import_ids,
+        verified_filter,
     )
 
 
@@ -205,6 +210,7 @@ def create_or_refresh_single_materialized_view(hex_size_meters: int):
            obs.source_dataset_id,
            obs.basis_of_record_id,
            obs.initial_data_import_id,
+           obs.verified,
            obs.date,
            obs.location,
            floor(ST_X(obs.location) / params.horiz_spacing)::int AS hex_col,

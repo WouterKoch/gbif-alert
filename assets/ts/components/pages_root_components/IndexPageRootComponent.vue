@@ -94,6 +94,15 @@
               @entries-changed="changeSelectedInitialDataImport"
           ></Filter-Selector>
 
+          <div class="mx-2 d-flex align-items-center">
+            <label class="me-1 text-nowrap">{{ $t('message.verificationFilter') }}:</label>
+            <select v-model="filters.verifiedFilter" class="form-select form-select-sm">
+              <option value="all">{{ $t('message.all') }}</option>
+              <option value="verified">{{ $t('message.verifiedOnly') }}</option>
+              <option value="unverified">{{ $t('message.unverifiedOnly') }}</option>
+            </select>
+          </div>
+
           <ObservationStatusSelector
               v-if="frontendConfig.authenticatedUser"
               v-model="filters.status"

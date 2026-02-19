@@ -155,6 +155,7 @@ def _create_or_update_alert(
     dataset_ids: list[int],
     basis_of_record_ids: list[int],
     email_notifications_frequency: str,
+    verified_filter: str,
     user: User,
     alert_id: int | None = None,
 ) -> JsonResponse:
@@ -166,6 +167,7 @@ def _create_or_update_alert(
 
     alert.name = alert_name
     alert.email_notifications_frequency = email_notifications_frequency
+    alert.verified_filter = verified_filter
 
     errors = {}
 
@@ -214,6 +216,7 @@ def alert(
             dataset_ids=alert_data["datasetIds"],
             basis_of_record_ids=alert_data.get("basisOfRecordIds", []),
             email_notifications_frequency=alert_data["emailNotificationsFrequency"],
+            verified_filter=alert_data.get("verifiedFilter", "all"),
             user=request.user,
             alert_id=alert_id,
         )

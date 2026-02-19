@@ -83,6 +83,17 @@
       </div>
     </div>
 
+    <div id="gbif-alert-alert-verified-filter-selection" class="mb-3">
+      <h3><label class="form-label">{{ $t("message.verificationFilter") }}</label></h3>
+      <div class="col offset-md-1">
+        <select v-model="alertData.verifiedFilter" class="form-select">
+          <option value="all">{{ $t('message.all') }}</option>
+          <option value="verified">{{ $t('message.verifiedOnly') }}</option>
+          <option value="unverified">{{ $t('message.unverifiedOnly') }}</option>
+        </select>
+      </div>
+    </div>
+
     <div id="gbif-alert-alert-frequency-selection" class="mb-3">
       <h3><label class="form-label">{{ $t("message.alertNotificationsFrequency") }}</label></h3>
       <div class="col offset-md-1">
@@ -165,7 +176,8 @@ const alertData = ref({
   datasetIds: [],
   basisOfRecordIds: [],
   areaIds: [],
-  emailNotificationsFrequency: 'W'
+  emailNotificationsFrequency: 'W',
+  verifiedFilter: 'all'
 });
 
 

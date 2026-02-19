@@ -21,6 +21,9 @@
             <li class="list-group-item" id="gbif-alert-alert-basis-of-record-list">
                 <b>{% translate "Basis of record:" %}</b> {{ alert.basis_of_record_list|default:all_translated }}
             </li>
+            <li class="list-group-item" id="gbif-alert-alert-verified-filter">
+                <b>{% translate "Verification filter:" %}</b> {{ alert.verified_filter_display }}
+            </li>
             <li class="list-group-item" id="gbif-alert-alert-frequency">
                 <b>{% translate "Email notifications frequency:" %}</b>
                 {{ alert.get_email_notifications_frequency_display }}

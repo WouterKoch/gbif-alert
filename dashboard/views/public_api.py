@@ -275,6 +275,7 @@ class ObservationsWFSView(WFSView):
                 "recorded_by",
                 "coordinate_uncertainty_in_meters",
                 "references",
+                "verified",
             ],
         ),
     ]

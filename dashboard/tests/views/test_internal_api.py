@@ -106,6 +106,7 @@ class InternalApiAlertTests(TestCase):
                 "id": self.alert.pk,
                 "name": "Test alert",
                 "speciesIds": [self.first_species.pk],
+                "verifiedFilter": "all",
             },
         )
 
@@ -329,6 +330,36 @@ class InternalApiAlertTests(TestCase):
             {"alert_id": self.alert.pk},
         )
         self.assertIn(bor.pk, response.json()["basisOfRecordIds"])
+
+    def test_edit_alert_with_verified_filter(self):
+        """A user can edit an alert and set a verification filter"""
+        self.client.login(username="frusciante", password="12345")
+
+        post_data = {
+            "id": self.alert.pk,
+            "name": self.alert.name,
+            "speciesIds": [s.pk for s in self.alert.species.all()],
+            "areaIds": [a.pk for a in self.alert.areas.all()],
+            "datasetIds": [d.pk for d in self.alert.datasets.all()],
+            "emailNotificationsFrequency": self.alert.email_notifications_frequency,
+            "verifiedFilter": "verified",
+        }
+        response = self._post_to_alert_endpoint(post_data)
+
+        self._assert_alert_endpoint_response(
+            response, {"alertId": self.alert.pk, "errors": {}, "success": True}
+        )
+
+        # Check the alert was updated in the database
+        self.alert.refresh_from_db()
+        self.assertEqual(self.alert.verified_filter, "verified")
+
+        # Verify it appears in the GET response
+        response = self.client.get(
+            reverse("dashboard:internal-api:alert"),
+            {"alert_id": self.alert.pk},
+        )
+        self.assertEqual(response.json()["verifiedFilter"], "verified")
 
 
 @override_settings(
@@ -883,5 +914,34 @@ class InternalApiTests(TestCase):
             response.content.decode("utf-8"),
             [
                 {"year": 2021, "month": 10, "count": 1},
+            ],
+        )
+
+    def test_filtered_observations_monthly_histogram_json_verified_filter(self):
+        # Set obs3 as verified; obs1 and obs2 remain unverified (the default)
+        self.obs3.verified = True
+        self.obs3.save()
+
+        base_url = reverse(
+            "dashboard:internal-api:filtered-observations-monthly-histogram"
+        )
+
+        # Filter for verified only: only obs3 (Oct 2021, count=1)
+        response = self.client.get(f"{base_url}?verifiedFilter=verified")
+        self.assertEqual(response.status_code, 200)
+        self.assertJSONEqual(
+            response.content.decode("utf-8"),
+            [
+                {"year": 2021, "month": 10, "count": 1},
+            ],
+        )
+
+        # Filter for unverified only: obs1 + obs2 (both Sept 2021, count=2)
+        response = self.client.get(f"{base_url}?verifiedFilter=unverified")
+        self.assertEqual(response.status_code, 200)
+        self.assertJSONEqual(
+            response.content.decode("utf-8"),
+            [
+                {"year": 2021, "month": 9, "count": 2},
             ],
         )

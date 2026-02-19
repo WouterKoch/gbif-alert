@@ -40,6 +40,7 @@ export interface DashboardFilters {
   areaIds: Number[];
   status: "seen" | "unseen" | null;
   initialDataImportIds: Number[];
+  verifiedFilter: "all" | "verified" | "unverified";
 }
 
 // Data comes directly from the backend, keep in sync with Species.as_dict()

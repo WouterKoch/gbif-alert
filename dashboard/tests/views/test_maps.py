@@ -347,6 +347,47 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
         self.assertEqual(response.json()["min"], 1)
         self.assertEqual(response.json()["max"], 2)
 
+    def test_min_max_per_hexagon_with_verified_filter(self):
+        # Add a third observation at Lillois with verified=True (obs1 and obs2 are unverified by default)
+        Observation.objects.create(
+            gbif_id=3,
+            occurrence_id="3VER",
+            species=self.second_species,
+            date=datetime.date.today(),
+            data_import=self.di,
+            initial_data_import=self.di,
+            source_dataset=self.first_dataset,
+            location=Point(4.35978, 50.64728, srid=4326),  # Lillois (same as obs2)
+            basis_of_record=self.basis_of_record,
+            verified=True,
+        )
+
+        create_or_refresh_materialized_views(zoom_levels=[8])
+
+        # Filter for verified only: only obs3 in Lillois -> min=1, max=1
+        response = self.client.get(
+            reverse("dashboard:internal-api:maps:mvt-min-max-per-hexagon"),
+            data={"zoom": 8, "verifiedFilter": "verified"},
+        )
+        self.assertEqual(response.json()["min"], 1)
+        self.assertEqual(response.json()["max"], 1)
+
+        # Filter for unverified only: obs1 in Andenne + obs2 in Lillois -> min=1, max=1
+        response = self.client.get(
+            reverse("dashboard:internal-api:maps:mvt-min-max-per-hexagon"),
+            data={"zoom": 8, "verifiedFilter": "unverified"},
+        )
+        self.assertEqual(response.json()["min"], 1)
+        self.assertEqual(response.json()["max"], 1)
+
+        # Without filter: Andenne=1, Lillois=2 -> min=1, max=2
+        response = self.client.get(
+            reverse("dashboard:internal-api:maps:mvt-min-max-per-hexagon"),
+            data={"zoom": 8},
+        )
+        self.assertEqual(response.json()["min"], 1)
+        self.assertEqual(response.json()["max"], 2)
+
     def test_min_max_in_hexagon_with_status_filter_invalid_value(self):
         """status is not seen nor unseen, therefore is ignored and everything is included"""
         self.client.login(username="frusciante", password="12345")
@@ -771,6 +812,52 @@ class MVTServerSingleObsTests(MapsTestDataMixin, MVTServerCommonTestsMixin, Test
         self.assertEqual(
             decoded_tile["default"]["features"][0]["properties"]["gbif_id"], "3"
         )
+
+    def test_tiles_verified_filter(self):
+        # Add a third observation at Lillois with verified=True (obs1 and obs2 are unverified by default)
+        Observation.objects.create(
+            gbif_id=3,
+            occurrence_id="3VER",
+            species=self.second_species,
+            date=datetime.date.today(),
+            data_import=self.di,
+            initial_data_import=self.di,
+            source_dataset=self.second_dataset,
+            location=Point(4.35978, 50.64728, srid=4326),  # Lillois (same as obs2)
+            basis_of_record=self.basis_of_record,
+            verified=True,
+        )
+
+        # Case 1: Large view over Wallonia, filter by verified: only obs3
+        base_url = reverse(
+            self.server_url_name,
+            kwargs={"zoom": 2, "x": 2, "y": 1},
+        )
+        url_with_params = f"{base_url}?verifiedFilter=verified"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(len(decoded_tile["default"]["features"]), 1)
+        self.assertEqual(
+            decoded_tile["default"]["features"][0]["properties"]["gbif_id"], "3"
+        )
+
+        # Case 2: Filter by unverified: obs1 and obs2 only (2 features)
+        url_with_params = f"{base_url}?verifiedFilter=unverified"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(len(decoded_tile["default"]["features"]), 2)
+        gbif_ids = {f["properties"]["gbif_id"] for f in decoded_tile["default"]["features"]}
+        self.assertEqual(gbif_ids, {"1", "2"})
+
+        # Case 3: Zoom to Andenne, filter by verified: no obs (obs1 in Andenne is unverified)
+        base_url = reverse(
+            self.server_url_name,
+            kwargs={"zoom": 10, "x": 526, "y": 345},
+        )
+        url_with_params = f"{base_url}?verifiedFilter=verified"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(decoded_tile, {})
 
     def test_tiles_start_date_filter(self):
         """Use the startDate parameter to filter out observations that are too old"""
@@ -1341,6 +1428,55 @@ class MVTServerAggregatedObsTests(
         self.assertEqual(
             decoded_tile["default"]["features"][0]["properties"]["count"], 1
         )
+
+    def test_tiles_verified_filter(self):
+        # Add a third observation at Lillois with verified=True (obs1 and obs2 are unverified by default)
+        Observation.objects.create(
+            gbif_id=3,
+            occurrence_id="3VER",
+            species=self.second_species,
+            date=datetime.date.today(),
+            data_import=self.di,
+            initial_data_import=self.di,
+            source_dataset=self.second_dataset,
+            location=Point(4.35978, 50.64728, srid=4326),  # Lillois (same as obs2)
+            basis_of_record=self.basis_of_record,
+            verified=True,
+        )
+
+        # Case 1: Large-scale view over Wallonia (single hex)
+        base_url = reverse(
+            self.server_url_name,
+            kwargs={"zoom": 2, "x": 2, "y": 1},
+        )
+
+        # Filter by verified: count should be 1 (only obs3)
+        url_with_params = f"{base_url}?verifiedFilter=verified"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(len(decoded_tile["default"]["features"]), 1)
+        self.assertEqual(
+            decoded_tile["default"]["features"][0]["properties"]["count"], 1
+        )
+
+        # Filter by unverified: count should be 2 (obs1 + obs2)
+        url_with_params = f"{base_url}?verifiedFilter=unverified"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(len(decoded_tile["default"]["features"]), 1)
+        self.assertEqual(
+            decoded_tile["default"]["features"][0]["properties"]["count"], 2
+        )
+
+        # Case 2: Zoom on Andenne, filter by verified: should be empty (obs1 is unverified)
+        base_url = reverse(
+            self.server_url_name,
+            kwargs={"zoom": 10, "x": 526, "y": 345},
+        )
+        url_with_params = f"{base_url}?verifiedFilter=verified"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(decoded_tile, {})
 
     def test_tiles_species_multiple_species_filters(self):
         # Test based on test_tiles_species_filter(self), but with two species explicitly requested

@@ -68,6 +68,7 @@ export default defineComponent({
         startDate: null,
         endDate: null,
         status: "unseen",
+        verifiedFilter: "all",
       },
       debouncedUpdateDateFilters: null,
       showInProgressMessage: false,

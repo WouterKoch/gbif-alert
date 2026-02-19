@@ -42,6 +42,12 @@ WHERE_CLAUSE = readable_string(
         {{% if initial_data_import_ids %}}
             AND obs.initial_data_import_id IN {{{{ initial_data_import_ids | inclause }}}}
         {{% endif %}}
+        {{% if verified_filter == 'verified' %}}
+            AND obs.verified = true
+        {{% endif %}}
+        {{% if verified_filter == 'unverified' %}}
+            AND obs.verified = false
+        {{% endif %}}
         {{% if status == 'seen' %}}
             AND NOT (EXISTS(
             SELECT (1) FROM {_TBL_UNSEEN} ov WHERE (
@@ -104,6 +110,7 @@ def _build_filter_params(request: HttpRequest) -> dict:
         area_ids,
         status_for_user,
         initial_data_import_ids,
+        verified_filter,
     ) = filters_from_request(request)
 
     params: dict = {
@@ -112,6 +119,7 @@ def _build_filter_params(request: HttpRequest) -> dict:
         "basis_of_record_ids": basis_of_record_ids,
         "area_ids": area_ids,
         "initial_data_import_ids": initial_data_import_ids,
+        "verified_filter": verified_filter,
     }
 
     if status_for_user and request.user.is_authenticated:
