@@ -32,14 +32,14 @@ export interface Tab {
 }
 
 export interface DashboardFilters {
-  speciesIds: Number[];
-  datasetsIds: Number[];
-  basisOfRecordIds: Number[];
+  speciesIds: number[];
+  datasetsIds: number[];
+  basisOfRecordIds: number[];
   startDate: string | null;
   endDate: string | null;
-  areaIds: Number[];
-  status: "seen" | "unseen" | null;
-  initialDataImportIds: Number[];
+  areaIds: number[];
+  status: "seen" | "unseen" | undefined;
+  initialDataImportIds: number[];
   verifiedFilter: "all" | "verified" | "unverified";
 }
 

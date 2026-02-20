@@ -155,7 +155,7 @@ interface IndexPageRootComponentData {
   availableAreas: AreaInformation[];
   availableDataImports: DataImportInformation[];
   filters: DashboardFilters;
-  debouncedUpdateDateFilters: null | DebouncedFunc<(range: DateRange) => void>;
+  debouncedUpdateDateFilters: DebouncedFunc<(range: DateRange) => void> | undefined;
 }
 
 export default defineComponent({
@@ -179,7 +179,7 @@ export default defineComponent({
 
       filters: initialFilters,
 
-      debouncedUpdateDateFilters: null,
+      debouncedUpdateDateFilters: undefined,
     };
   },
   computed: {
@@ -216,29 +216,29 @@ export default defineComponent({
   },
   methods: {
     // TODO: remove duplication, original in helpers.ts
-    scientificNameFormatter: function (rawValue: string, highlightedValue: string): string {
+    scientificNameFormatter: function (_rawValue: string | number, highlightedValue: string): string {
       return `<i>${highlightedValue}</i>`;
     },
     // TODO: remove duplication, original in helpers.ts
-    gbifTaxonKeyFormatter: function (rawValue: string, highlightedValue: string): string {
+    gbifTaxonKeyFormatter: function (rawValue: string | number, highlightedValue: string): string {
       return `<a href="https://www.gbif.org/species/${rawValue}" target="_blank">${highlightedValue}</a>`;
     },
-    gbifDatasetKeyFormatter: function (rawValue: string, highlightedValue: string): string {
+    gbifDatasetKeyFormatter: function (rawValue: string | number, highlightedValue: string): string {
       return `<a class="small" href="https://www.gbif.org/dataset/${rawValue}" target="_blank">${highlightedValue}</a>`;
     },
-    changeSelectedSpecies: function (speciesIds: Number[]) {
+    changeSelectedSpecies: function (speciesIds: number[]) {
       this.filters.speciesIds = speciesIds;
     },
-    changeSelectedDatasets: function (datasetsIds: Number[]) {
+    changeSelectedDatasets: function (datasetsIds: number[]) {
       this.filters.datasetsIds = datasetsIds;
     },
-    changeSelectedBasisOfRecord: function (basisOfRecordIds: Number[]) {
+    changeSelectedBasisOfRecord: function (basisOfRecordIds: number[]) {
       this.filters.basisOfRecordIds = basisOfRecordIds;
     },
-    changeSelectedAreas: function (areasIds: Number[]) {
+    changeSelectedAreas: function (areasIds: number[]) {
       this.filters.areaIds = areasIds;
     },
-    changeSelectedInitialDataImport: function (dataImportsIds: Number[]) {
+    changeSelectedInitialDataImport: function (dataImportsIds: number[]) {
       this.filters.initialDataImportIds = dataImportsIds;
     },
     populateAvailableDatasets: function () {
