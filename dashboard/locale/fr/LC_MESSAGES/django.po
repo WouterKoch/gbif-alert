@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-19 13:20+0100\n"
+"POT-Creation-Date: 2026-02-20 10:06+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,81 +18,81 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: forms.py:12
+#: dashboard/forms.py:12
 msgid "Area name"
 msgstr "Nom de la zone"
 
-#: forms.py:14
+#: dashboard/forms.py:14
 msgid "A short name to identify this area"
 msgstr "Un nom (court) pour identifier cette zone"
 
-#: forms.py:17
+#: dashboard/forms.py:17
 msgid "Data file"
 msgstr "Fichier de données"
 
-#: forms.py:37
+#: dashboard/forms.py:37
 msgid "First name"
 msgstr "Prénom"
 
-#: forms.py:37 forms.py:40
+#: dashboard/forms.py:37 dashboard/forms.py:40
 msgid "Optional."
 msgstr "Facultatif."
 
-#: forms.py:40
+#: dashboard/forms.py:40
 msgid "Last name"
 msgstr "Nom de famille"
 
-#: forms.py:43
+#: dashboard/forms.py:43
 msgid "Email"
 msgstr "Email"
 
-#: forms.py:45
+#: dashboard/forms.py:45
 msgid "Required. Enter a valid email address."
 msgstr "Requis. Entrez une adresse email valide."
 
-#: forms.py:49
+#: dashboard/forms.py:49
 msgid "Language"
 msgstr "Langue"
 
-#: forms.py:51
+#: dashboard/forms.py:51
 msgid "This language will be used for emails."
 msgstr ""
 
-#: forms.py:71
+#: dashboard/forms.py:71
 msgid "Notification delay"
 msgstr ""
 
-#: forms.py:73
+#: dashboard/forms.py:73
 msgid ""
 "Observations older than this number of days will be automatically considered "
 "as 'seen'"
 msgstr ""
 
-#: models.py:955
+#: dashboard/models.py:955
 msgid "No emails"
 msgstr "Pas d'emails"
 
-#: models.py:956
+#: dashboard/models.py:956
 msgid "Daily"
 msgstr "Journalier"
 
-#: models.py:957
+#: dashboard/models.py:957
 msgid "Weekly"
 msgstr "Hebdomadaire"
 
-#: models.py:958
+#: dashboard/models.py:958
 msgid "Monthly"
 msgstr "Mensuel"
 
-#: models.py:969
+#: dashboard/models.py:969
 msgid "name"
 msgstr "nom"
 
-#: models.py:973
+#: dashboard/models.py:973
 msgid "species"
 msgstr "espèces"
 
-#: models.py:976
+#: dashboard/models.py:976
 msgid ""
 "To select multiple items, press and hold the Ctrl or Command key and click "
 "the items."
@@ -100,11 +100,11 @@ msgstr ""
 "Pour sélectionner plusieurs éléments, maintenez la touche Ctrl ou 'pomme / "
 "command' enfoncée "
 
-#: models.py:982
+#: dashboard/models.py:982
 msgid "datasets"
 msgstr "jeux de données"
 
-#: models.py:985
+#: dashboard/models.py:985
 msgid ""
 "Optional (no selection = notify me for all datasets). To select multiple "
 "items, press and hold the Ctrl or Command key and click the items."
@@ -113,11 +113,11 @@ msgstr ""
 "Pour sélectionner plusieurs éléments, maintenez la touche Ctrl ou 'pomme / "
 "command' enfoncée "
 
-#: models.py:991
+#: dashboard/models.py:991
 msgid "basis of record"
 msgstr "type d'observation"
 
-#: models.py:994
+#: dashboard/models.py:994
 msgid ""
 "Optional (no selection = notify me for all basis of records). To select "
 "multiple items, press and hold the Ctrl or Command key and click the items."
@@ -126,11 +126,11 @@ msgstr ""
 "d'observation). Pour sélectionner plusieurs éléments, maintenez la touche "
 "Ctrl ou 'pomme / command' enfoncée "
 
-#: models.py:1001
+#: dashboard/models.py:1001
 msgid "areas"
 msgstr "zones"
 
-#: models.py:1003
+#: dashboard/models.py:1003
 msgid ""
 "Optional (no selection = notify me for all data in the system). To select "
 "multiple items, press and hold the Ctrl or Command key and click the items."
@@ -139,102 +139,102 @@ msgstr ""
 "système). Pour sélectionner plusieurs éléments, maintenez la touche Ctrl ou "
 "'pomme / command' enfoncée "
 
-#: models.py:1012
+#: dashboard/models.py:1012
 msgid "email notifications frequency"
 msgstr "fréquence des notifications par email"
 
-#: models.py:1164
+#: dashboard/models.py:1164
 msgid "unseen observation(s) for your alert"
 msgstr "observation(s) non vue(s) pour votre alerte"
 
-#: templates/dashboard/503.html:7
+#: dashboard/templates/dashboard/503.html:7
 msgid "In maintenance"
 msgstr "Maintenance en cours"
 
-#: templates/dashboard/_alert.html:8
+#: dashboard/templates/dashboard/_alert.html:8
 msgid "all"
 msgstr "tout"
 
-#: templates/dashboard/_alert.html:10
+#: dashboard/templates/dashboard/_alert.html:10
 msgid "Species:"
 msgstr "Espèces :"
 
-#: templates/dashboard/_alert.html:16
+#: dashboard/templates/dashboard/_alert.html:16
 msgid "Areas:"
 msgstr "Zones :"
 
-#: templates/dashboard/_alert.html:19
+#: dashboard/templates/dashboard/_alert.html:19
 msgid "Datasets:"
 msgstr "Jeux de données :"
 
-#: templates/dashboard/_alert.html:22
+#: dashboard/templates/dashboard/_alert.html:22
 msgid "Basis of record:"
 msgstr "Type d'observation :"
 
-#: templates/dashboard/_alert.html:25
+#: dashboard/templates/dashboard/_alert.html:25
 msgid "Verification filter:"
 msgstr "Filtre de vérification :"
 
-#: templates/dashboard/_alert.html:28
+#: dashboard/templates/dashboard/_alert.html:28
 msgid "Email notifications frequency:"
 msgstr "Fréquence des notifications par email :"
 
-#: templates/dashboard/_alert.html:32
+#: dashboard/templates/dashboard/_alert.html:32
 msgid "Last email sent:"
 msgstr "Dernier email envoyé :"
 
-#: templates/dashboard/_alert.html:33
+#: dashboard/templates/dashboard/_alert.html:33
 msgid "never"
 msgstr "jamais"
 
-#: templates/dashboard/_alert.html:43
+#: dashboard/templates/dashboard/_alert.html:43
 msgid "Matching observations"
 msgstr "Observations correspondantes"
 
-#: templates/dashboard/_alert.html:47
+#: dashboard/templates/dashboard/_alert.html:47
 msgid "unseen"
 msgstr "non vues"
 
-#: templates/dashboard/_alert.html:56
+#: dashboard/templates/dashboard/_alert.html:56
 msgid "Edit this alert"
 msgstr "Modifier cette alerte"
 
-#: templates/dashboard/_alert.html:71
+#: dashboard/templates/dashboard/_alert.html:71
 msgid "Show all my alerts"
 msgstr "Montrer toutes mes alertes"
 
-#: templates/dashboard/_data_import.html:6
+#: dashboard/templates/dashboard/_data_import.html:6
 msgid "Data import: #"
 msgstr "Import de données #"
 
-#: templates/dashboard/_data_import.html:9
+#: dashboard/templates/dashboard/_data_import.html:9
 msgid "Date/time"
 msgstr "Date/heure"
 
-#: templates/dashboard/_data_import.html:14
+#: dashboard/templates/dashboard/_data_import.html:14
 msgid "Imported observations"
 msgstr "Observations importées"
 
-#: templates/dashboard/_data_import.html:19
+#: dashboard/templates/dashboard/_data_import.html:19
 msgid "New observations in this import"
 msgstr "Nouvelles observations dans cet import"
 
-#: templates/dashboard/_data_import.html:25
+#: dashboard/templates/dashboard/_data_import.html:25
 #, python-format
 msgid "Skipped observations in <a href=\"%(gbif_url)s\">GBIF download</a>"
 msgstr ""
 "Observations ignorées dans le <a href=\"%(gbif_url)s\">téléchargement GBIF</"
 "a>"
 
-#: templates/dashboard/_data_import.html:31
+#: dashboard/templates/dashboard/_data_import.html:31
 msgid "GBIF predicate"
 msgstr "Prédicat GBIF"
 
-#: templates/dashboard/_footer.html:11
+#: dashboard/templates/dashboard/_footer.html:11
 msgid "Latest data import:"
 msgstr "Dernier import de données :"
 
-#: templates/dashboard/_footer.html:12
+#: dashboard/templates/dashboard/_footer.html:12
 msgid ""
 "This site is powered by <a href=\"https://github.com/riparias/gbif-"
 "alert\">GBIF Alert</a> version"
@@ -242,68 +242,77 @@ msgstr ""
 "Ce site est propulsé par <a href=\"https://github.com/riparias/gbif-"
 "alert\">GBIF Alert</a> version"
 
-#: templates/dashboard/_navbar.html:12
+#: dashboard/templates/dashboard/_navbar.html:12
 msgid "Explore all observations"
 msgstr "Voir toutes les observations"
 
-#: templates/dashboard/_navbar.html:15 templates/dashboard/news.html:7
-#: templates/dashboard/news.html:15
+#: dashboard/templates/dashboard/_navbar.html:15
+#: dashboard/templates/dashboard/news.html:7
+#: dashboard/templates/dashboard/news.html:15
 msgid "What's new"
 msgstr "Nouveautés"
 
-#: templates/dashboard/_navbar.html:19 templates/dashboard/_navbar.html:44
-#: templates/dashboard/user_alerts.html:5
-#: templates/dashboard/user_alerts.html:13
+#: dashboard/templates/dashboard/_navbar.html:19
+#: dashboard/templates/dashboard/_navbar.html:44
+#: dashboard/templates/dashboard/user_alerts.html:5
+#: dashboard/templates/dashboard/user_alerts.html:13
 msgid "My alerts"
 msgstr "Mes alertes"
 
-#: templates/dashboard/_navbar.html:23 templates/dashboard/about_site.html:7
-#: templates/dashboard/about_site.html:15
+#: dashboard/templates/dashboard/_navbar.html:23
+#: dashboard/templates/dashboard/about_site.html:7
+#: dashboard/templates/dashboard/about_site.html:15
 msgid "About this site"
 msgstr "A propos de ce site"
 
-#: templates/dashboard/_navbar.html:26 templates/dashboard/about_data.html:7
-#: templates/dashboard/about_data.html:15
+#: dashboard/templates/dashboard/_navbar.html:26
+#: dashboard/templates/dashboard/about_data.html:7
+#: dashboard/templates/dashboard/about_data.html:15
 msgid "About the data"
 msgstr "A propos des données"
 
-#: templates/dashboard/_navbar.html:40 templates/dashboard/user_profile.html:7
-#: templates/dashboard/user_profile.html:15
+#: dashboard/templates/dashboard/_navbar.html:40
+#: dashboard/templates/dashboard/user_profile.html:7
+#: dashboard/templates/dashboard/user_profile.html:15
 msgid "My profile"
 msgstr "Mon profil"
 
-#: templates/dashboard/_navbar.html:41
-#: templates/dashboard/password_change.html:6
-#: templates/dashboard/password_change.html:14
+#: dashboard/templates/dashboard/_navbar.html:41
+#: dashboard/templates/dashboard/password_change.html:6
+#: dashboard/templates/dashboard/password_change.html:14
 msgid "Change my password"
 msgstr "Modifier mon mot de passe"
 
-#: templates/dashboard/_navbar.html:53 templates/dashboard/user_areas.html:19
+#: dashboard/templates/dashboard/_navbar.html:53
+#: dashboard/templates/dashboard/user_areas.html:19
 msgid "My user-specific areas"
 msgstr "Mes zones spécifiques"
 
-#: templates/dashboard/_navbar.html:61
+#: dashboard/templates/dashboard/_navbar.html:61
 msgid "Admin panel"
 msgstr "Panneau d'administration"
 
-#: templates/dashboard/_navbar.html:63
+#: dashboard/templates/dashboard/_navbar.html:63
 msgid "Sign out"
 msgstr "Se déconnecter"
 
-#: templates/dashboard/_navbar.html:67 templates/dashboard/signin.html:6
-#: templates/dashboard/signin.html:14 templates/dashboard/signin.html:39
+#: dashboard/templates/dashboard/_navbar.html:67
+#: dashboard/templates/dashboard/signin.html:6
+#: dashboard/templates/dashboard/signin.html:14
+#: dashboard/templates/dashboard/signin.html:39
 msgid "Sign in"
 msgstr "Se connecter"
 
-#: templates/dashboard/_navbar.html:68 templates/dashboard/user_signup.html:7
+#: dashboard/templates/dashboard/_navbar.html:68
+#: dashboard/templates/dashboard/user_signup.html:7
 msgid "Sign up"
 msgstr "S'inscrire"
 
-#: templates/dashboard/about_data.html:16
+#: dashboard/templates/dashboard/about_data.html:16
 msgid "Data imports"
 msgstr "Imports de données :"
 
-#: templates/dashboard/about_data.html:18
+#: dashboard/templates/dashboard/about_data.html:18
 msgid ""
 "The data (observations) shown in this application is frequently and "
 "automatically refreshed from <a href=\"https://www.gbif.org\">GBIF</a>."
@@ -312,7 +321,7 @@ msgstr ""
 "régulièrement et automatiquement mises à jour depuis <a href=\"https://"
 "www.gbif.org\">GBIF</a>."
 
-#: templates/dashboard/about_data.html:22
+#: dashboard/templates/dashboard/about_data.html:22
 msgid ""
 "The following data import was performed to populate the data currently "
 "visible in the application:"
@@ -320,61 +329,197 @@ msgstr ""
 "Les données suivantes ont été importées pour alimenter les données "
 "actuellement visibles dans l'application :"
 
-#: templates/dashboard/about_data.html:28
+#: dashboard/templates/dashboard/about_data.html:28
 msgid "Show all data imports"
 msgstr "Montrer tous les imports de données"
 
-#: templates/dashboard/alert_create.html:6
+#: dashboard/templates/dashboard/alert_create.html:6
 msgid "New alert"
 msgstr "Mouvelle alerte"
 
-#: templates/dashboard/alert_create.html:14
-#: templates/dashboard/user_alerts.html:17
+#: dashboard/templates/dashboard/alert_create.html:14
+#: dashboard/templates/dashboard/user_alerts.html:17
 msgid "Create a new alert"
 msgstr "Créer une nouvelle alerte"
 
-#: templates/dashboard/alert_details.html:7
+#: dashboard/templates/dashboard/alert_details.html:7
 msgid "Alert details"
 msgstr "Détails de l'alerte"
 
-#: templates/dashboard/alert_edit.html:6 templates/dashboard/alert_edit.html:14
+#: dashboard/templates/dashboard/alert_edit.html:6
+#: dashboard/templates/dashboard/alert_edit.html:14
 msgid "Edit alert"
 msgstr "Modifier une alerte"
 
-#: templates/dashboard/index.html:9
+#: dashboard/templates/dashboard/index.html:9
 msgid "Home"
 msgstr "Accueil"
 
-#: templates/dashboard/observation_details.html:28
+#: dashboard/templates/dashboard/observation_details.html:13
+#: dashboard/templates/dashboard/observation_details.html:58
+msgid "Verified"
+msgstr "Vérifié"
+
+#: dashboard/templates/dashboard/observation_details.html:15
+msgid "Unverified"
+msgstr "Non vérifié"
+
+#: dashboard/templates/dashboard/observation_details.html:17
+#, python-format
+msgid "Observation of %(species)s on %(date)s"
+msgstr "Observation de %(species)s le %(date)s"
+
+#: dashboard/templates/dashboard/observation_details.html:22
+msgid "Show observation in the admin section"
+msgstr "Afficher l'observation dans la section admin"
+
+#: dashboard/templates/dashboard/observation_details.html:34
 msgid "Mark this observation as unseen"
 msgstr "Marquer cette observation comme non vue"
 
-#: templates/dashboard/observation_details.html:44
+#: dashboard/templates/dashboard/observation_details.html:44
+msgid "GBIF ID"
+msgstr "GBIF ID"
+
+#: dashboard/templates/dashboard/observation_details.html:47
 msgid "Species"
 msgstr "Espèce"
 
-#: templates/dashboard/password_change.html:19
+#: dashboard/templates/dashboard/observation_details.html:50
+msgid "Individual count"
+msgstr "Nombre d'individus"
+
+#: dashboard/templates/dashboard/observation_details.html:53
+msgid "Source dataset"
+msgstr "Jeu de données source"
+
+#: dashboard/templates/dashboard/observation_details.html:61
+msgid "Yes"
+msgstr "Oui"
+
+#: dashboard/templates/dashboard/observation_details.html:63
+msgid "No"
+msgstr "Non"
+
+#: dashboard/templates/dashboard/observation_details.html:69
+msgid ""
+"The value in parentheses is the raw GBIF identificationVerificationStatus"
+msgstr ""
+"La valeur entre parenthèses est l'identificationVerificationStatus brut de GBIF"
+
+#: dashboard/templates/dashboard/observation_details.html:73
+msgid "Basis of record"
+msgstr "Type d'observation"
+
+#: dashboard/templates/dashboard/observation_details.html:76
+msgid "Date"
+msgstr "Date"
+
+#: dashboard/templates/dashboard/observation_details.html:79
+msgid "Recorded by"
+msgstr "Enregistré par"
+
+#: dashboard/templates/dashboard/observation_details.html:83
+msgid "References"
+msgstr "Références"
+
+#: dashboard/templates/dashboard/observation_details.html:87
+msgid "First imported during"
+msgstr "Premier import lors de"
+
+#: dashboard/templates/dashboard/observation_details.html:91
+msgid "Go back to previous page"
+msgstr "Retourner à la page précédente"
+
+#: dashboard/templates/dashboard/observation_details.html:105
+msgid "Location"
+msgstr "Localisation"
+
+#: dashboard/templates/dashboard/observation_details.html:107
+#: dashboard/templates/dashboard/observation_details.html:118
+msgid "unknown"
+msgstr "inconnu"
+
+#: dashboard/templates/dashboard/observation_details.html:109
+msgid "Coordinates"
+msgstr "Coordonnées"
+
+#: dashboard/templates/dashboard/observation_details.html:112
+msgid "Coordinates uncertainty"
+msgstr "Incertitude des coordonnées"
+
+#: dashboard/templates/dashboard/observation_details.html:115
+#, python-format
+msgid "%(displayed)s meter"
+msgid_plural "%(displayed)s meters"
+msgstr[0] "%(displayed)s mètre"
+msgstr[1] "%(displayed)s mètres"
+
+#: dashboard/templates/dashboard/observation_details.html:116
+msgid ""
+"the <b>green circle</b> accurately represents the coordinates uncertainty"
+msgstr ""
+"le <b>cercle vert</b> représente précisément l'incertitude des coordonnées"
+
+#: dashboard/templates/dashboard/observation_details.html:119
+msgid "represented as a 100m <b>red</b> circle"
+msgstr "représenté par un <b>cercle rouge</b> de 100m"
+
+#: dashboard/templates/dashboard/observation_details.html:123
+msgid "Municipality"
+msgstr "Commune"
+
+#: dashboard/templates/dashboard/observation_details.html:126
+msgid "Locality"
+msgstr "Localité"
+
+#: dashboard/templates/dashboard/observation_details.html:136
+msgid "User comments"
+msgstr "Commentaires utilisateurs"
+
+#: dashboard/templates/dashboard/observation_details.html:140
+msgid "No comments yet for this observation!"
+msgstr "Aucun commentaire pour cette observation !"
+
+#: dashboard/templates/dashboard/observation_details.html:144
+msgid "New comment"
+msgstr "Nouveau commentaire"
+
+#: dashboard/templates/dashboard/observation_details.html:148
+msgid "Post comment"
+msgstr "Publier le commentaire"
+
+#: dashboard/templates/dashboard/observation_details.html:152
+#, python-format
+msgid ""
+"Please <a href=\"%(signin_url)s?next=%(next)s\">sign in</a> to be able to "
+"post comments."
+msgstr ""
+"Veuillez <a href=\"%(signin_url)s?next=%(next)s\">vous connecter</a> pour "
+"pouvoir poster des commentaires."
+
+#: dashboard/templates/dashboard/password_change.html:19
 msgid "Change password"
 msgstr "Modifier le mot de passe !"
 
-#: templates/dashboard/password_change_done.html:5
+#: dashboard/templates/dashboard/password_change_done.html:5
 msgid "Password changed"
 msgstr "Mot de passe modifié"
 
-#: templates/dashboard/password_change_done.html:13
+#: dashboard/templates/dashboard/password_change_done.html:13
 msgid "Your password was successfully changed."
 msgstr "Votre mot de passe a été mis à jour avec succès."
 
-#: templates/dashboard/password_change_done.html:14
+#: dashboard/templates/dashboard/password_change_done.html:14
 msgid "Go to index page"
 msgstr "Aller a la page d'accueil"
 
-#: templates/dashboard/password_reset.html:7
-#: templates/dashboard/password_reset.html:15
+#: dashboard/templates/dashboard/password_reset.html:7
+#: dashboard/templates/dashboard/password_reset.html:15
 msgid "Forgot your password?"
 msgstr "Mot de passe oublié ?"
 
-#: templates/dashboard/password_reset.html:16
+#: dashboard/templates/dashboard/password_reset.html:16
 msgid ""
 "Enter your email address below, and we'll email instructions for setting a "
 "new one."
@@ -382,16 +527,16 @@ msgstr ""
 "Saisissez votre adresse email ci-dessous, et nous vous enverrons les "
 "instructions pour en définir un nouveau."
 
-#: templates/dashboard/password_reset.html:21
+#: dashboard/templates/dashboard/password_reset.html:21
 msgid "Send me instructions!"
 msgstr "Envoyez-moi les instructions !"
 
-#: templates/dashboard/password_reset_complete.html:5
-#: templates/dashboard/password_reset_complete.html:13
+#: dashboard/templates/dashboard/password_reset_complete.html:5
+#: dashboard/templates/dashboard/password_reset_complete.html:13
 msgid "Password reset complete"
 msgstr "Mot de passe réinitialisé"
 
-#: templates/dashboard/password_reset_complete.html:17
+#: dashboard/templates/dashboard/password_reset_complete.html:17
 #, python-format
 msgid ""
 "\n"
@@ -403,15 +548,15 @@ msgstr ""
 "Votre nouveau mot de passe a été défini. Vous pouvez maintenant <a "
 "href=\"%(signin_url)s\">vous connecter</a>."
 
-#: templates/dashboard/password_reset_confirm.html:7
+#: dashboard/templates/dashboard/password_reset_confirm.html:7
 msgid "Reset your password"
 msgstr "Reinitialiser votre mot de passe"
 
-#: templates/dashboard/password_reset_confirm.html:16
+#: dashboard/templates/dashboard/password_reset_confirm.html:16
 msgid "Set a new password!"
 msgstr "Choisissez un nouveau mot de passe !"
 
-#: templates/dashboard/password_reset_confirm.html:24
+#: dashboard/templates/dashboard/password_reset_confirm.html:24
 msgid ""
 "The password reset link was invalid, possibly because it has already been "
 "used. Please request a new password reset."
@@ -420,15 +565,15 @@ msgstr ""
 "déjà été utilisé. Veuillez demander une nouvelle réinitialisation du mot de "
 "passe."
 
-#: templates/dashboard/password_reset_done.html:6
+#: dashboard/templates/dashboard/password_reset_done.html:6
 msgid "Instructions sent"
 msgstr "Instructions envoyées"
 
-#: templates/dashboard/password_reset_done.html:14
+#: dashboard/templates/dashboard/password_reset_done.html:14
 msgid "Check your inbox."
 msgstr "Vérifiez votre boîte de réception."
 
-#: templates/dashboard/password_reset_done.html:16
+#: dashboard/templates/dashboard/password_reset_done.html:16
 msgid ""
 "We've emailed you instructions for setting your password. You should receive "
 "the email shortly!"
@@ -436,11 +581,11 @@ msgstr ""
 "Nous vous avons envoyé des instructions pour définir votre mot de passe. "
 "Vous devriez recevoir l'email sous peu !"
 
-#: templates/dashboard/signin.html:16
+#: dashboard/templates/dashboard/signin.html:16
 msgid "Your username and password didn't match. Please try again."
 msgstr ""
 
-#: templates/dashboard/signin.html:21
+#: dashboard/templates/dashboard/signin.html:21
 msgid ""
 "Your account doesn't have access to this page. To proceed, please sign in "
 "with an account that has access."
@@ -448,35 +593,35 @@ msgstr ""
 "Votre compte ne permet pas d'accéder à cette page. Pour continuer, veuillez "
 "vous connecter avec un compte ayant les permissions suffisantes."
 
-#: templates/dashboard/signin.html:23
+#: dashboard/templates/dashboard/signin.html:23
 msgid "Please sign in to see this page."
 msgstr "Veuillez vous connecter pour voir cette page."
 
-#: templates/dashboard/signin.html:30
+#: dashboard/templates/dashboard/signin.html:30
 msgid "Username:"
 msgstr "Nom d'utilisateur :"
 
-#: templates/dashboard/signin.html:35
+#: dashboard/templates/dashboard/signin.html:35
 msgid "Password:"
 msgstr "Mot de passe :"
 
-#: templates/dashboard/signin.html:40
+#: dashboard/templates/dashboard/signin.html:40
 msgid "Lost password?"
 msgstr "Mot de passe oublié ?"
 
-#: templates/dashboard/user_alerts.html:26
+#: dashboard/templates/dashboard/user_alerts.html:26
 msgid "You currently don't have any configured alerts."
 msgstr "Vous n'avez actuellement aucune alerte configurée."
 
-#: templates/dashboard/user_areas.html:7
+#: dashboard/templates/dashboard/user_areas.html:7
 msgid "My areas"
 msgstr "Mes zones"
 
-#: templates/dashboard/user_areas.html:21
+#: dashboard/templates/dashboard/user_areas.html:21
 msgid "Upload a new area"
 msgstr "Uploadez une nouvelle zone"
 
-#: templates/dashboard/user_areas.html:25
+#: dashboard/templates/dashboard/user_areas.html:25
 msgid ""
 "\n"
 "                    <p><i class=\"bi bi-info-square\"></i> The following "
@@ -508,12 +653,12 @@ msgstr ""
 "                    </ul>\n"
 "                    "
 
-#: templates/dashboard/user_areas.html:39
-#: templates/dashboard/user_profile.html:19
+#: dashboard/templates/dashboard/user_areas.html:39
+#: dashboard/templates/dashboard/user_profile.html:19
 msgid "Save"
 msgstr "Enregistrer"
 
-#: templates/dashboard/user_areas.html:44
+#: dashboard/templates/dashboard/user_areas.html:44
 #, python-format
 msgid ""
 "\n"
@@ -530,30 +675,33 @@ msgstr[1] ""
 "\n"
 "%(counter)s zones spécifiques"
 
-#: views/actions.py:36
+#: dashboard/views/actions.py:36
 msgid "Your alert has been deleted."
 msgstr "Votre alerte a été supprimée."
 
-#: views/actions.py:49
+#: dashboard/views/actions.py:49
 msgid "Your account has been deleted."
 msgstr "Votre compte utilisateur a été supprimé."
 
-#: views/actions.py:65
+#: dashboard/views/actions.py:65
 msgid "The area has been deleted."
 msgstr "La zone a été supprimée."
 
-#: views/actions.py:70
+#: dashboard/views/actions.py:70
 msgid "The area could not be deleted because it has alerts associated with it."
 msgstr ""
 "Cette zone ne peut pas être supprimée car elle est associée à des alertes."
 
-#: views/internal_api.py:175
+#: dashboard/views/internal_api.py:175
 msgid "At least one species must be selected"
 msgstr "Au moins une espèce doit être sélectionnée"
 
-#: views/pages.py:153
+#: dashboard/views/pages.py:153
 msgid "Your profile was successfully updated."
 msgstr "Votre profil a été mis à jour avec succès."
+
+#~ msgid "IdentificationVerificationStatus (raw GBIF value)"
+#~ msgstr "IdentificationVerificationStatus (valeur brute GBIF)"
 
 #~ msgid "You have already seen this observation in the past"
 #~ msgstr "Vous avez déjà vu cette observation dans le passé"

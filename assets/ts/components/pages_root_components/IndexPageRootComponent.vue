@@ -80,6 +80,7 @@
           </Filter-Selector>
 
           <Filter-Selector
+              v-if="showInitialDataImportFilter"
               class="mx-2"
               :button-label-singular="$t('message.initialDataImport')"
               :button-label-suffix-plural="$t('message.xSelectedInitialDataImports')"
@@ -91,7 +92,7 @@
               :selector-initial-sort-direction="'desc'"
               :label-index="0"
               :initially-selected-entries-ids="filters.initialDataImportIds"
-              @entries-changed="changeSelectedInitialDataImport"
+              @entries-changed="changeSelectedInitialDataImport "
           ></Filter-Selector>
 
           <div class="mx-2 d-flex align-items-center">
@@ -200,6 +201,9 @@ export default defineComponent({
           .map((d) => {
             return {id: d.id, columnData: [d.id, d.name, (new Date(d.startTimestamp)).toLocaleString()]};
           });
+    },
+    showInitialDataImportFilter: function (): boolean {
+      return (initialFilters.initialDataImportIds?.length ?? 0) > 0;
     },
   },
   created() {
