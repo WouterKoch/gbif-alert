@@ -27,7 +27,8 @@ services:
     expose:
       - 6379
   gbif-alert:
-    build: .
+    build:
+      context: .
     expose:
       - 8000
     depends_on:
@@ -38,7 +39,8 @@ services:
     volumes:
       - static_volume:/app/staticfiles
   rqworker:
-    build: .
+    build:
+      context: .
     entrypoint: poetry run python manage.py rqworker default
     depends_on:
       db:
