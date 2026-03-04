@@ -12,6 +12,9 @@ def human_readable_git_version_number() -> str:
     """Return the git tag name (if available) or the git commit hash (if not)"""
     project_root = settings.BASE_DIR
 
-    return subprocess.check_output(
-        ["git", "-C", project_root, "describe", "--always", "--tags"], encoding="UTF-8"
-    ).strip()
+    try:
+        return subprocess.check_output(
+            ["git", "-C", project_root, "describe", "--always", "--tags"], encoding="UTF-8"
+        ).strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return "unknown"
