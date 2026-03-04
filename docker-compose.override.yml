@@ -1,0 +1,29 @@
+services:
+  nginx:
+    image: nginx:1.25
+    network_mode: host
+    volumes:
+      - ./gbif-alert/nginx/nginx-host.conf:/etc/nginx/conf.d/default.conf:ro,z
+      - static_volume:/app/staticfiles
+  db:
+    network_mode: host
+  redis:
+    network_mode: host
+  gbif-alert:
+    build:
+      context: ./gbif-alert
+      network: host
+    image: gbif-alert:local
+    network_mode: host
+    volumes:
+      - static_volume:/app/staticfiles
+      - ./local_settings_docker.py:/app/djangoproject/local_settings_docker.py:ro,z
+  rqworker:
+    build:
+      context: ./gbif-alert
+      network: host
+    image: gbif-alert:local
+    network_mode: host
+    volumes:
+      - static_volume:/app/staticfiles
+      - ./local_settings_docker.py:/app/djangoproject/local_settings_docker.py:ro,z
