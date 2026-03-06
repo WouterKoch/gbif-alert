@@ -3,8 +3,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from django.utils.translation import gettext_lazy as _
-from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Layout, Div, HTML
+from crispy_forms.helper import FormHelper  # type: ignore
+from crispy_forms.layout import Layout, Div, HTML  # type: ignore
 
 from dashboard.models import ObservationComment
 
@@ -153,10 +153,12 @@ class EditProfileForm(CommonUsersFields, UserChangeForm):
             ),
             HTML(
                 "<p class='form-text'>"
-                + str(_(
-                    "Observations older than this delay will be automatically considered as 'seen'. "
-                    "Note: 1 month = 30 days, 1 year = 365 days."
-                ))
+                + str(
+                    _(
+                        "Observations older than this delay will be automatically considered as 'seen'. "
+                        "Note: 1 month = 30 days, 1 year = 365 days."
+                    )
+                )
                 + "</p>"
             ),
         )
