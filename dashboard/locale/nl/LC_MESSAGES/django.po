@@ -468,7 +468,7 @@ msgstr "Gemeente"
 
 #: dashboard/templates/dashboard/observation_details.html:126
 msgid "Locality"
-msgstr "Lokaliteit"
+msgstr "Plaatsnaam"
 
 #: dashboard/templates/dashboard/observation_details.html:136
 msgid "User comments"
