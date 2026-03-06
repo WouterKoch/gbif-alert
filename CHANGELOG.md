@@ -3,7 +3,7 @@
 - Allow to filter observations per basis of record
 - By default, (at page load), only unseen observations are shown
 - Allow to filter observations per validation status
-- Multiple user interface improvements (https://github.com/riparias/gbif-alert/issues/145, https://github.com/riparias/gbif-alert/issues/296, ...)
+- Multiple user interface improvements (https://github.com/riparias/gbif-alert/issues/145, https://github.com/riparias/gbif-alert/issues/296, https://github.com/riparias/gbif-alert/issues/290, ...)
 - Updated backend and frontend dependencies
 - Internal improvements (https://github.com/riparias/gbif-alert/issues/282)
 

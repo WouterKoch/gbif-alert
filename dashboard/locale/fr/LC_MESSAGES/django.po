@@ -60,13 +60,35 @@ msgstr ""
 
 #: dashboard/forms.py:71
 msgid "Notification delay"
-msgstr ""
+msgstr "Délai de notification"
+
+#: dashboard/forms.py:78
+msgid "Delay unit"
+msgstr "Unité de délai"
 
 #: dashboard/forms.py:73
 msgid ""
-"Observations older than this number of days will be automatically considered "
-"as 'seen'"
+"Observations older than this delay will be automatically considered as "
+"'seen'. Note: 1 month = 30 days, 1 year = 365 days."
 msgstr ""
+"Les observations plus anciennes que ce délai seront automatiquement "
+"considérées comme 'vues'. Note : 1 mois = 30 jours, 1 an = 365 jours."
+
+#: dashboard/forms.py:60
+msgid "days"
+msgstr "jours"
+
+#: dashboard/forms.py:61
+msgid "weeks"
+msgstr "semaines"
+
+#: dashboard/forms.py:62
+msgid "months"
+msgstr "mois"
+
+#: dashboard/forms.py:63
+msgid "years"
+msgstr "ans"
 
 #: dashboard/models.py:955
 msgid "No emails"

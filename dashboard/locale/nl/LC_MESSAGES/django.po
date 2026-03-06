@@ -60,13 +60,35 @@ msgstr "Deze taal zal gebruikt worden voor emails."
 
 #: dashboard/forms.py:71
 msgid "Notification delay"
-msgstr ""
+msgstr "Meldingsvertraging"
+
+#: dashboard/forms.py:78
+msgid "Delay unit"
+msgstr "Eenheid van vertraging"
 
 #: dashboard/forms.py:73
 msgid ""
-"Observations older than this number of days will be automatically considered "
-"as 'seen'"
+"Observations older than this delay will be automatically considered as "
+"'seen'. Note: 1 month = 30 days, 1 year = 365 days."
 msgstr ""
+"Waarnemingen ouder dan deze vertraging worden automatisch als 'gezien' "
+"beschouwd. Opmerking: 1 maand = 30 dagen, 1 jaar = 365 dagen."
+
+#: dashboard/forms.py:60
+msgid "days"
+msgstr "dagen"
+
+#: dashboard/forms.py:61
+msgid "weeks"
+msgstr "weken"
+
+#: dashboard/forms.py:62
+msgid "months"
+msgstr "maanden"
+
+#: dashboard/forms.py:63
+msgid "years"
+msgstr "jaren"
 
 #: dashboard/models.py:955
 msgid "No emails"
