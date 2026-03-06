@@ -3,6 +3,7 @@ import re
 import time
 
 from django.conf import settings
+from django.test import tag
 from django.contrib.auth import get_user_model
 from django.contrib.gis.geos import Point
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
@@ -61,6 +62,7 @@ def _get_webdriver() -> WebDriver:
     },
     DEBUG=True,
 )
+@tag("sequential")
 class SeleniumTestsCommon(StaticLiveServerTestCase):
     """Common test data and Selenium-related plumbing"""
 

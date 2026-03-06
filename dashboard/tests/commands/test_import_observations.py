@@ -3,6 +3,8 @@ from pathlib import Path
 from unittest import mock
 from zoneinfo import ZoneInfo
 
+from django.test import tag
+
 import requests_mock
 from django.contrib.gis.geos import Point
 from django.core.management import call_command
@@ -58,6 +60,7 @@ def predicate_builder_belgium(species_list: QuerySet[Species]):
 @override_settings(
     STATICFILES_STORAGE="django.contrib.staticfiles.storage.StaticFilesStorage"
 )
+@tag("sequential")
 class ImportObservationsTest(TransactionTestCase):
     def setUp(self) -> None:
         self.user = User.objects.create_user(
