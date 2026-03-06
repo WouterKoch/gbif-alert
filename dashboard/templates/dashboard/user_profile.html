@@ -17,6 +17,7 @@
                     {% csrf_token %}
                     {{ form|crispy }}
                     <button id="gbif-alert-profile-save-button" type="submit" class="btn btn-primary btn-sm">{% translate "Save" %}</button>
+                    <p class="text-muted small mt-2">{% translate "* indicates a required field" %}</p>
                 </form>
             </div>
         </div>

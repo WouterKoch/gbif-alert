@@ -275,6 +275,10 @@ msgstr "Over de data"
 msgid "My profile"
 msgstr "Mijn profiel"
 
+#: dashboard/templates/dashboard/user_profile.html:20
+msgid "* indicates a required field"
+msgstr "* duidt een verplicht veld aan"
+
 #: dashboard/templates/dashboard/_navbar.html:41
 #: dashboard/templates/dashboard/password_change.html:6
 #: dashboard/templates/dashboard/password_change.html:14

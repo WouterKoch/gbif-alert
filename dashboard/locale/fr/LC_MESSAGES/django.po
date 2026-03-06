@@ -277,6 +277,10 @@ msgstr "A propos des données"
 msgid "My profile"
 msgstr "Mon profil"
 
+#: dashboard/templates/dashboard/user_profile.html:20
+msgid "* indicates a required field"
+msgstr "* indique un champ obligatoire"
+
 #: dashboard/templates/dashboard/_navbar.html:41
 #: dashboard/templates/dashboard/password_change.html:6
 #: dashboard/templates/dashboard/password_change.html:14
