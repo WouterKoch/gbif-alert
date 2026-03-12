@@ -81,6 +81,11 @@ internal_api_urls = [
     path("data-imports", views.dataimports_list_json, name="dataimports-list-json"),
     path("datasets", views.datasets_list_json, name="datasets-list-json"),
     path(
+        "basis-of-record",
+        views.basis_of_record_list_json,
+        name="basis-of-record-list-json",
+    ),
+    path(
         "filtered-observations/mark_as_seen",
         views.filtered_observations_mark_as_seen,
         name="filtered-observations-mark-as-seen",

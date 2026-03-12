@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-06-05 13:44+0200\n"
+"POT-Creation-Date: 2026-02-20 10:06+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -58,31 +58,63 @@ msgstr "Langue"
 msgid "This language will be used for emails."
 msgstr ""
 
-#: dashboard/models.py:643
+#: dashboard/forms.py:71
+msgid "Notification delay"
+msgstr "Délai de notification"
+
+#: dashboard/forms.py:78
+msgid "Delay unit"
+msgstr "Unité de délai"
+
+#: dashboard/forms.py:73
+msgid ""
+"Observations older than this delay will be automatically considered as "
+"'seen'. Note: 1 month = 30 days, 1 year = 365 days."
+msgstr ""
+"Les observations plus anciennes que ce délai seront automatiquement "
+"considérées comme 'vues'. Note : 1 mois = 30 jours, 1 an = 365 jours."
+
+#: dashboard/forms.py:60
+msgid "days"
+msgstr "jours"
+
+#: dashboard/forms.py:61
+msgid "weeks"
+msgstr "semaines"
+
+#: dashboard/forms.py:62
+msgid "months"
+msgstr "mois"
+
+#: dashboard/forms.py:63
+msgid "years"
+msgstr "ans"
+
+#: dashboard/models.py:955
 msgid "No emails"
 msgstr "Pas d'emails"
 
-#: dashboard/models.py:644
+#: dashboard/models.py:956
 msgid "Daily"
 msgstr "Journalier"
 
-#: dashboard/models.py:645
+#: dashboard/models.py:957
 msgid "Weekly"
 msgstr "Hebdomadaire"
 
-#: dashboard/models.py:646
+#: dashboard/models.py:958
 msgid "Monthly"
 msgstr "Mensuel"
 
-#: dashboard/models.py:657
+#: dashboard/models.py:969
 msgid "name"
 msgstr "nom"
 
-#: dashboard/models.py:661
+#: dashboard/models.py:973
 msgid "species"
 msgstr "espèces"
 
-#: dashboard/models.py:664
+#: dashboard/models.py:976
 msgid ""
 "To select multiple items, press and hold the Ctrl or Command key and click "
 "the items."
@@ -90,11 +122,11 @@ msgstr ""
 "Pour sélectionner plusieurs éléments, maintenez la touche Ctrl ou 'pomme / "
 "command' enfoncée "
 
-#: dashboard/models.py:670
+#: dashboard/models.py:982
 msgid "datasets"
 msgstr "jeux de données"
 
-#: dashboard/models.py:673
+#: dashboard/models.py:985
 msgid ""
 "Optional (no selection = notify me for all datasets). To select multiple "
 "items, press and hold the Ctrl or Command key and click the items."
@@ -103,11 +135,24 @@ msgstr ""
 "Pour sélectionner plusieurs éléments, maintenez la touche Ctrl ou 'pomme / "
 "command' enfoncée "
 
-#: dashboard/models.py:680
+#: dashboard/models.py:991
+msgid "basis of record"
+msgstr "type d'observation"
+
+#: dashboard/models.py:994
+msgid ""
+"Optional (no selection = notify me for all basis of records). To select "
+"multiple items, press and hold the Ctrl or Command key and click the items."
+msgstr ""
+"Facultatif (aucune sélection = me notifier pour tous les types "
+"d'observation). Pour sélectionner plusieurs éléments, maintenez la touche "
+"Ctrl ou 'pomme / command' enfoncée "
+
+#: dashboard/models.py:1001
 msgid "areas"
 msgstr "zones"
 
-#: dashboard/models.py:682
+#: dashboard/models.py:1003
 msgid ""
 "Optional (no selection = notify me for all data in the system). To select "
 "multiple items, press and hold the Ctrl or Command key and click the items."
@@ -116,11 +161,11 @@ msgstr ""
 "système). Pour sélectionner plusieurs éléments, maintenez la touche Ctrl ou "
 "'pomme / command' enfoncée "
 
-#: dashboard/models.py:691
+#: dashboard/models.py:1012
 msgid "email notifications frequency"
 msgstr "fréquence des notifications par email"
 
-#: dashboard/models.py:804
+#: dashboard/models.py:1164
 msgid "unseen observation(s) for your alert"
 msgstr "observation(s) non vue(s) pour votre alerte"
 
@@ -145,30 +190,38 @@ msgid "Datasets:"
 msgstr "Jeux de données :"
 
 #: dashboard/templates/dashboard/_alert.html:22
+msgid "Basis of record:"
+msgstr "Type d'observation :"
+
+#: dashboard/templates/dashboard/_alert.html:25
+msgid "Verification filter:"
+msgstr "Filtre de vérification :"
+
+#: dashboard/templates/dashboard/_alert.html:28
 msgid "Email notifications frequency:"
 msgstr "Fréquence des notifications par email :"
 
-#: dashboard/templates/dashboard/_alert.html:26
+#: dashboard/templates/dashboard/_alert.html:32
 msgid "Last email sent:"
 msgstr "Dernier email envoyé :"
 
-#: dashboard/templates/dashboard/_alert.html:27
+#: dashboard/templates/dashboard/_alert.html:33
 msgid "never"
 msgstr "jamais"
 
-#: dashboard/templates/dashboard/_alert.html:37
+#: dashboard/templates/dashboard/_alert.html:43
 msgid "Matching observations"
 msgstr "Observations correspondantes"
 
-#: dashboard/templates/dashboard/_alert.html:41
+#: dashboard/templates/dashboard/_alert.html:47
 msgid "unseen"
 msgstr "non vues"
 
-#: dashboard/templates/dashboard/_alert.html:50
+#: dashboard/templates/dashboard/_alert.html:56
 msgid "Edit this alert"
 msgstr "Modifier cette alerte"
 
-#: dashboard/templates/dashboard/_alert.html:65
+#: dashboard/templates/dashboard/_alert.html:71
 msgid "Show all my alerts"
 msgstr "Montrer toutes mes alertes"
 
@@ -246,6 +299,10 @@ msgstr "A propos des données"
 msgid "My profile"
 msgstr "Mon profil"
 
+#: dashboard/templates/dashboard/user_profile.html:20
+msgid "* indicates a required field"
+msgstr "* indique un champ obligatoire"
+
 #: dashboard/templates/dashboard/_navbar.html:41
 #: dashboard/templates/dashboard/password_change.html:6
 #: dashboard/templates/dashboard/password_change.html:14
@@ -287,8 +344,8 @@ msgid ""
 "automatically refreshed from <a href=\"https://www.gbif.org\">GBIF</a>."
 msgstr ""
 "Les données (observations) affichées dans cette application sont "
-"régulièrement et automatiquement mises à jour depuis <a href=\"https://www."
-"gbif.org\">GBIF</a>."
+"régulièrement et automatiquement mises à jour depuis <a href=\"https://"
+"www.gbif.org\">GBIF</a>."
 
 #: dashboard/templates/dashboard/about_data.html:22
 msgid ""
@@ -324,17 +381,148 @@ msgstr "Modifier une alerte"
 msgid "Home"
 msgstr "Accueil"
 
-#: dashboard/templates/dashboard/observation_details.html:23
-msgid "You have already seen this observation in the past"
-msgstr "Vous avez déjà vu cette observation dans le passé"
+#: dashboard/templates/dashboard/observation_details.html:13
+#: dashboard/templates/dashboard/observation_details.html:58
+msgid "Verified"
+msgstr "Vérifié"
 
-#: dashboard/templates/dashboard/observation_details.html:29
+#: dashboard/templates/dashboard/observation_details.html:15
+msgid "Unverified"
+msgstr "Non vérifié"
+
+#: dashboard/templates/dashboard/observation_details.html:17
+#, python-format
+msgid "Observation of %(species)s on %(date)s"
+msgstr "Observation de %(species)s le %(date)s"
+
+#: dashboard/templates/dashboard/observation_details.html:22
+msgid "Show observation in the admin section"
+msgstr "Afficher l'observation dans la section admin"
+
+#: dashboard/templates/dashboard/observation_details.html:34
 msgid "Mark this observation as unseen"
 msgstr "Marquer cette observation comme non vue"
 
-#: dashboard/templates/dashboard/observation_details.html:45
+#: dashboard/templates/dashboard/observation_details.html:44
+msgid "GBIF ID"
+msgstr "GBIF ID"
+
+#: dashboard/templates/dashboard/observation_details.html:47
 msgid "Species"
 msgstr "Espèce"
+
+#: dashboard/templates/dashboard/observation_details.html:50
+msgid "Individual count"
+msgstr "Nombre d'individus"
+
+#: dashboard/templates/dashboard/observation_details.html:53
+msgid "Source dataset"
+msgstr "Jeu de données source"
+
+#: dashboard/templates/dashboard/observation_details.html:61
+msgid "Yes"
+msgstr "Oui"
+
+#: dashboard/templates/dashboard/observation_details.html:63
+msgid "No"
+msgstr "Non"
+
+#: dashboard/templates/dashboard/observation_details.html:69
+msgid ""
+"The value in parentheses is the raw GBIF identificationVerificationStatus"
+msgstr ""
+"La valeur entre parenthèses est l'identificationVerificationStatus brut de GBIF"
+
+#: dashboard/templates/dashboard/observation_details.html:73
+msgid "Basis of record"
+msgstr "Type d'observation"
+
+#: dashboard/templates/dashboard/observation_details.html:76
+msgid "Date"
+msgstr "Date"
+
+#: dashboard/templates/dashboard/observation_details.html:79
+msgid "Recorded by"
+msgstr "Enregistré par"
+
+#: dashboard/templates/dashboard/observation_details.html:83
+msgid "References"
+msgstr "Références"
+
+#: dashboard/templates/dashboard/observation_details.html:87
+msgid "First imported during"
+msgstr "Premier import lors de"
+
+#: dashboard/templates/dashboard/observation_details.html:91
+msgid "Go back to previous page"
+msgstr "Retourner à la page précédente"
+
+#: dashboard/templates/dashboard/observation_details.html:105
+msgid "Location"
+msgstr "Localisation"
+
+#: dashboard/templates/dashboard/observation_details.html:107
+#: dashboard/templates/dashboard/observation_details.html:118
+msgid "unknown"
+msgstr "inconnu"
+
+#: dashboard/templates/dashboard/observation_details.html:109
+msgid "Coordinates"
+msgstr "Coordonnées"
+
+#: dashboard/templates/dashboard/observation_details.html:112
+msgid "Coordinates uncertainty"
+msgstr "Incertitude des coordonnées"
+
+#: dashboard/templates/dashboard/observation_details.html:115
+#, python-format
+msgid "%(displayed)s meter"
+msgid_plural "%(displayed)s meters"
+msgstr[0] "%(displayed)s mètre"
+msgstr[1] "%(displayed)s mètres"
+
+#: dashboard/templates/dashboard/observation_details.html:116
+msgid ""
+"the <b>green circle</b> accurately represents the coordinates uncertainty"
+msgstr ""
+"le <b>cercle vert</b> représente précisément l'incertitude des coordonnées"
+
+#: dashboard/templates/dashboard/observation_details.html:119
+msgid "represented as a 100m <b>red</b> circle"
+msgstr "représenté par un <b>cercle rouge</b> de 100m"
+
+#: dashboard/templates/dashboard/observation_details.html:123
+msgid "Municipality"
+msgstr "Commune"
+
+#: dashboard/templates/dashboard/observation_details.html:126
+msgid "Locality"
+msgstr "Localité"
+
+#: dashboard/templates/dashboard/observation_details.html:136
+msgid "User comments"
+msgstr "Commentaires utilisateurs"
+
+#: dashboard/templates/dashboard/observation_details.html:140
+msgid "No comments yet for this observation!"
+msgstr "Aucun commentaire pour cette observation !"
+
+#: dashboard/templates/dashboard/observation_details.html:144
+msgid "New comment"
+msgstr "Nouveau commentaire"
+
+#: dashboard/templates/dashboard/observation_details.html:148
+msgid "Post comment"
+msgstr "Publier le commentaire"
+
+#: dashboard/templates/dashboard/observation_details.html:152
+#, python-format
+msgid ""
+"Please <a href=\"%(signin_url)s?next=%(next)s\">sign in</a> to be able to "
+"post comments."
+msgstr ""
+"Veuillez <a href=\"%(signin_url)s?next=%(next)s\">vous connecter</a> pour "
+"pouvoir poster des commentaires."
 
 #: dashboard/templates/dashboard/password_change.html:19
 msgid "Change password"
@@ -465,9 +653,9 @@ msgid ""
 "                    <p><i class=\"bi bi-info-square\"></i> The following "
 "contraints apply to the uploaded file:</p>\n"
 "                    <ul>\n"
-"                        <li>it must be a <b><a href=\"https://en.wikipedia."
-"org/wiki/GeoPackage\">GeoPackage</a></b> (many external tools exist to "
-"convert other file formats to GeoPackages)</li>\n"
+"                        <li>it must be a <b><a href=\"https://"
+"en.wikipedia.org/wiki/GeoPackage\">GeoPackage</a></b> (many external tools "
+"exist to convert other file formats to GeoPackages)</li>\n"
 "                        <li>it must contain a <b>single layer</b></li>\n"
 "                        <li>the layer must contain a <b>single feature</b> "
 "of type <b>polygon</b> or <b>multipolygon</b></li>\n"
@@ -480,8 +668,8 @@ msgstr ""
 "                    <p><i class=\"bi bi-info-square\"></i> Les contraintes "
 "suivantes s'appliquent au fichier:</p>\n"
 "                    <ul>\n"
-"                        <li>Il doit être un <b><a href=\"https://en."
-"wikipedia.org/wiki/GeoPackage\">GeoPackage</a></b> (de nombreux outils "
+"                        <li>Il doit être un <b><a href=\"https://"
+"en.wikipedia.org/wiki/GeoPackage\">GeoPackage</a></b> (de nombreux outils "
 "externes permettent une conversion vers ce format)</li>\n"
 "                        <li>Il doit contenir <b>une seule couche</b></li>\n"
 "                        <li>cette couche doit contenir <b>un seul objet</b>, "
@@ -530,10 +718,16 @@ msgid "The area could not be deleted because it has alerts associated with it."
 msgstr ""
 "Cette zone ne peut pas être supprimée car elle est associée à des alertes."
 
-#: dashboard/views/internal_api.py:162
+#: dashboard/views/internal_api.py:175
 msgid "At least one species must be selected"
 msgstr "Au moins une espèce doit être sélectionnée"
 
-#: dashboard/views/pages.py:148
+#: dashboard/views/pages.py:153
 msgid "Your profile was successfully updated."
 msgstr "Votre profil a été mis à jour avec succès."
+
+#~ msgid "IdentificationVerificationStatus (raw GBIF value)"
+#~ msgstr "IdentificationVerificationStatus (valeur brute GBIF)"
+
+#~ msgid "You have already seen this observation in the past"
+#~ msgstr "Vous avez déjà vu cette observation dans le passé"

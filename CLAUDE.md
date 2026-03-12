@@ -14,6 +14,12 @@ GBIF Alert is a Django-based early alert system for invasive species using GBIF 
 
 ## Commands
 
+### Django Settings
+To run `manage.py` commands (makemigrations, migrate, test, etc.), set the Django settings module:
+```bash
+export DJANGO_SETTINGS_MODULE=djangoproject.local_settings
+```
+
 ### Setup
 ```bash
 poetry install          # Install Python dependencies

@@ -32,13 +32,15 @@ export interface Tab {
 }
 
 export interface DashboardFilters {
-  speciesIds: Number[];
-  datasetsIds: Number[];
+  speciesIds: number[];
+  datasetsIds: number[];
+  basisOfRecordIds: number[];
   startDate: string | null;
   endDate: string | null;
-  areaIds: Number[];
-  status: "seen" | "unseen" | null;
-  initialDataImportIds: Number[];
+  areaIds: number[];
+  status: "seen" | "unseen" | undefined;
+  initialDataImportIds: number[];
+  verifiedFilter: "all" | "verified" | "unverified";
 }
 
 // Data comes directly from the backend, keep in sync with Species.as_dict()
@@ -53,6 +55,11 @@ export interface SpeciesInformation {
 export interface DatasetInformation {
   id: number;
   gbifKey: number;
+  name: string;
+}
+
+export interface BasisOfRecordInformation {
+  id: number;
   name: string;
 }
 
@@ -72,6 +79,7 @@ export interface DataImportInformation {
 export interface EndpointsUrls {
   speciesListUrl: string;
   datasetsListUrl: string;
+  basisOfRecordListUrl: string;
   areasListUrl: string;
   areaDeleteUrlTemplate: string;
   dataImportsListUrl: string;

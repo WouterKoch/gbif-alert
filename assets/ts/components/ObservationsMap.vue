@@ -5,7 +5,7 @@
 
 <script lang="ts">
 import {Collection, Feature, Map, Overlay, View} from "ol";
-import {defineComponent, PropType} from "vue";
+import {defineComponent, markRaw, PropType} from "vue";
 import {fromLonLat} from "ol/proj";
 import TileLayer from "ol/layer/Tile";
 import {VectorTile as VectorTileLayer} from "ol/layer";
@@ -31,13 +31,13 @@ import {StyleFunction} from "ol/style/Style";
 
 interface ObservationMapData {
   map: Map | null;
-  aggregatedDataLayer: VectorTileLayer<Feature> | null;
-  simpleDataLayer: VectorTileLayer<Feature> | null;
+  aggregatedDataLayer: VectorTileLayer | null;
+  simpleDataLayer: VectorTileLayer | null;
   popup: Overlay;
   HexMinOccCount: Number;
   HexMaxOccCount: Number;
   availableBaseLayers: BaseLayerEntry[];
-  areasOverlayCollection: Collection<VectorLayer<Feature>>;
+  areasOverlayCollection: Collection<VectorLayer>;
   popover: Popover | null;
 }
 
@@ -81,11 +81,11 @@ export default defineComponent({
       map: null,
       aggregatedDataLayer: null,
       simpleDataLayer: null,
-      popup: new Overlay({}),
+      popup: markRaw(new Overlay({})),
       HexMinOccCount: 1,
       HexMaxOccCount: 1,
-      availableBaseLayers: baseLayers,
-      areasOverlayCollection: new Collection(),
+      availableBaseLayers: markRaw(baseLayers),
+      areasOverlayCollection: markRaw(new Collection()),
       popover: null,
     } as ObservationMapData;
   },
@@ -184,10 +184,10 @@ export default defineComponent({
       };
     },
     mapView: function (): View {
-      return new View({
+      return markRaw(new View({
         zoom: this.initialPosition.initialZoom,
         center: fromLonLat([this.initialPosition.initialLon, this.initialPosition.initialLat]),
-      });
+      }));
     },
   },
   methods: {
@@ -235,23 +235,23 @@ export default defineComponent({
     replaceSimpleDataLayer: function (): void {
       if (this.map) {
         if (this.simpleDataLayer) {
-          this.map.removeLayer(this.simpleDataLayer as VectorTileLayer<Feature>);
+          this.map.removeLayer(this.simpleDataLayer as VectorTileLayer);
         }
-        this.simpleDataLayer = this.createSimpleDataLayer();
-        this.map.addLayer(this.simpleDataLayer as VectorTileLayer<Feature>);
+        this.simpleDataLayer = markRaw(this.createSimpleDataLayer());
+        this.map.addLayer(this.simpleDataLayer as VectorTileLayer);
       }
     },
     replaceAggregatedDataLayer: function (): void {
       if (this.map) {
         if (this.aggregatedDataLayer) {
-          this.map.removeLayer(this.aggregatedDataLayer as VectorTileLayer<Feature>);
+          this.map.removeLayer(this.aggregatedDataLayer as VectorTileLayer);
         }
         this.loadOccMinMax(this.zoomLevelMinMaxQuery, this.filters);
-        this.aggregatedDataLayer = this.createAggregatedDataLayer();
-        this.map.addLayer(this.aggregatedDataLayer as VectorTileLayer<Feature>);
+        this.aggregatedDataLayer = markRaw(this.createAggregatedDataLayer());
+        this.map.addLayer(this.aggregatedDataLayer as VectorTileLayer);
       }
     },
-    createSimpleDataLayer: function (): VectorTileLayer<Feature> {
+    createSimpleDataLayer: function (): VectorTileLayer {
       return new VectorTileLayer({
         source: new VectorTileSource({
           format: new MVT(),
@@ -270,7 +270,7 @@ export default defineComponent({
         minZoom: this.layerSwitchZoomLevel,
       });
     },
-    createAggregatedDataLayer: function (): VectorTileLayer<Feature> {
+    createAggregatedDataLayer: function (): VectorTileLayer {
       return new VectorTileLayer({
         source: new VectorTileSource({
           format: new MVT(),
@@ -300,7 +300,7 @@ export default defineComponent({
     },
   },
   mounted() {
-    this.map = this.createBasicMap();
+    this.map = markRaw(this.createBasicMap());
 
     // Prepare popup
     this.popup.setElement(this.$refs["popup-root"] as HTMLElement);

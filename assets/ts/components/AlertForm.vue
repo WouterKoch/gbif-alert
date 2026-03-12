@@ -69,6 +69,30 @@
       </div>
     </div>
 
+    <div id="gbif-alert-alert-basis-of-record-selection" class="mb-3">
+      <h3><label class="form-label">{{ $t("message.basisOfRecordToInclude") }}</label></h3>
+      <div class="col offset-md-1">
+        <BootstrapAlert :dismissible="false" alert-type="info">
+          <i class="bi bi-info-circle-fill"></i> {{ $t("message.noBasisOfRecordSelection") }}
+        </BootstrapAlert>
+        <Selector :available-entries="availableBasisOfRecordAsDataRows"
+                  :columns-config="[
+                      {label: $t('message.name'), dataIndex: 0}
+                  ]"
+                  v-model="alertData.basisOfRecordIds"></Selector>
+      </div>
+    </div>
+
+    <div id="gbif-alert-alert-verified-filter-selection" class="mb-3">
+      <h3><label class="form-label">{{ $t("message.verificationFilter") }}</label></h3>
+      <div class="col offset-md-1">
+        <select v-model="alertData.verifiedFilter" class="form-select">
+          <option value="all">{{ $t('message.all') }}</option>
+          <option value="verified">{{ $t('message.verifiedOnly') }}</option>
+          <option value="unverified">{{ $t('message.unverifiedOnly') }}</option>
+        </select>
+      </div>
+    </div>
 
     <div id="gbif-alert-alert-frequency-selection" class="mb-3">
       <h3><label class="form-label">{{ $t("message.alertNotificationsFrequency") }}</label></h3>
@@ -99,13 +123,14 @@
 import {computed, onMounted, ref} from "vue";
 import axios from "axios";
 
-import {AreaInformation, DataRow, DatasetInformation, FrontEndConfig, SpeciesInformation} from "../interfaces";
+import {AreaInformation, BasisOfRecordInformation, DataRow, DatasetInformation, FrontEndConfig, SpeciesInformation} from "../interfaces";
 import Selector from "./Selector.vue";
 import BootstrapAlert from "./BootstrapAlert.vue";
 import {
   gbifDatasetKeyFormatter,
   gbifTaxonKeyFormatter,
   prepareAreasData,
+  prepareBasisOfRecordData,
   prepareDatasetsData,
   prepareSpeciesData,
   scientificNameFormatter
@@ -118,6 +143,7 @@ interface Props {
   speciesListUrl: string,
   areasListUrl: string;
   datasetsListUrl: string;
+  basisOfRecordListUrl: string;
   suggestAlertNameUrl?: string; // Not necessary if editing an existing alert
   notificationsFrequenciesUrl: string;
   alertId?: number // If set, we want to update rather than create
@@ -136,6 +162,7 @@ const props = withDefaults(defineProps<Props>(), {});
 const availableSpecies = ref<SpeciesInformation[]>([]);
 const availableAreas = ref<AreaInformation[]>([]);
 const availableDatasets = ref<DatasetInformation[]>([]);
+const availableBasisOfRecord = ref<BasisOfRecordInformation[]>([]);
 
 const availableNotificationFrequencies = ref<FrequencyInformation[]>([]);
 
@@ -147,8 +174,10 @@ const alertData = ref({
   name: '',
   speciesIds: [],
   datasetIds: [],
+  basisOfRecordIds: [],
   areaIds: [],
-  emailNotificationsFrequency: 'W'
+  emailNotificationsFrequency: 'W',
+  verifiedFilter: 'all'
 });
 
 
@@ -203,6 +232,14 @@ const populateAvailableDatasets = function () {
       })
 }
 
+const populateAvailableBasisOfRecord = function () {
+  axios
+      .get(props.basisOfRecordListUrl)
+      .then((response) => {
+        availableBasisOfRecord.value = response.data;
+      })
+}
+
 const populateAvailableNotificationFrequencies = function () {
   axios
       .get(props.notificationsFrequenciesUrl)
@@ -224,6 +261,12 @@ const availableDatasetsAsDataRows = computed(
     },
 );
 
+const availableBasisOfRecordAsDataRows = computed(
+    (): DataRow[] => {
+      return prepareBasisOfRecordData(availableBasisOfRecord.value);
+    },
+);
+
 const availableSpeciesAsDataRows = computed(
     (): DataRow[] => {
       return prepareSpeciesData(availableSpecies.value);
@@ -235,6 +278,7 @@ onMounted(() => {
   populateAvailableSpecies();
   populateAvailableAreas();
   populateAvailableDatasets();
+  populateAvailableBasisOfRecord();
 
   populateAvailableNotificationFrequencies();
 

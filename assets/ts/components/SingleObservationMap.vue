@@ -3,7 +3,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent} from "vue";
+import {defineComponent, markRaw} from "vue";
 import Feature from "ol/Feature";
 import Map from "ol/Map";
 import {fromLonLat} from "ol/proj";
@@ -108,7 +108,7 @@ export default defineComponent({
     },
   },
   mounted: function () {
-    this.map = this.createBasicMap();
+    this.map = markRaw(this.createBasicMap());
   },
 });
 </script>

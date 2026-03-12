@@ -7,6 +7,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from dashboard.models import (
+    BasisOfRecord,
     Observation,
     Species,
     DataImport,
@@ -27,6 +28,10 @@ class ObservationTests(TestCase):
     def setUp(self):
         # Not possible to replace this by setUpTestData because some methods alter the observation => this code should
         # therefore be run before each method
+        self.basis_of_record = BasisOfRecord.objects.create(
+            name="HUMAN_OBSERVATION"
+        )
+
         self.dataset = Dataset.objects.create(
             name="Test dataset", gbif_dataset_key=SAMPLE_DATASET_KEY
         )
@@ -45,6 +50,7 @@ class ObservationTests(TestCase):
             initial_data_import=di,
             source_dataset=self.dataset,
             location=Point(5.09513, 50.48941, srid=4326),  # Andenne
+            basis_of_record=self.basis_of_record,
         )
 
         User = get_user_model()
@@ -84,6 +90,7 @@ class ObservationTests(TestCase):
             initial_data_import=di,
             source_dataset=self.dataset,
             location=Point(5.09513, 50.48941, srid=4326),  # Andenne
+            basis_of_record=self.basis_of_record,
         )
 
         self.obs2_unseen_obj = ObservationUnseen.objects.create(
@@ -241,6 +248,7 @@ class ObservationTests(TestCase):
             initial_data_import=new_di,
             source_dataset=self.dataset,
             location=Point(5.09513, 50.48941, srid=4326),  # Andenne
+            basis_of_record=self.basis_of_record,
         )
 
         self.assertEqual(new_one.get_identical_observations().count(), 1)
@@ -260,6 +268,7 @@ class ObservationTests(TestCase):
             initial_data_import=di_2,
             source_dataset=self.dataset,
             location=Point(5.09513, 50.48941, srid=4326),  # Andenne
+            basis_of_record=self.basis_of_record,
         )
         self.assertEqual(self.obs.get_identical_observations().count(), 0)
         # Ensure the new one also has no identical
@@ -276,6 +285,7 @@ class ObservationTests(TestCase):
             initial_data_import=di_3,
             source_dataset=self.dataset,
             location=Point(5.09513, 50.48941, srid=4326),  # Andenne
+            basis_of_record=self.basis_of_record,
         )
 
         # Test that we can access find the other one from any of the objects
@@ -296,6 +306,7 @@ class ObservationTests(TestCase):
             initial_data_import=di_4,
             source_dataset=self.dataset,
             location=Point(5.09513, 50.48941, srid=4326),  # Andenne
+            basis_of_record=self.basis_of_record,
         )
 
         self.assertEqual(self.obs.get_identical_observations().count(), 2)
@@ -320,6 +331,7 @@ class ObservationTests(TestCase):
             initial_data_import=di_2,
             source_dataset=self.dataset,
             location=Point(5.09513, 50.48941, srid=4326),  # Andenne
+            basis_of_record=self.basis_of_record,
         )
 
         # we can get the old one from the new one
@@ -341,6 +353,7 @@ class ObservationTests(TestCase):
             initial_data_import=di_3,
             source_dataset=self.dataset,
             location=Point(5.09513, 50.48941, srid=4326),  # Andenne
+            basis_of_record=self.basis_of_record,
         )
 
         # The three of them now report the inconsistency

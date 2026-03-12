@@ -97,11 +97,13 @@ def filtered_observations_from_request(request: HttpRequest) -> QuerySet[Observa
     (
         species_ids,
         datasets_ids,
+        basis_of_record_ids,
         start_date,
         end_date,
         areas_ids,
         status_for_user,
         initial_data_import_ids,
+        verified_filter,
     ) = filters_from_request(request)
 
     user = None
@@ -111,12 +113,14 @@ def filtered_observations_from_request(request: HttpRequest) -> QuerySet[Observa
     return Observation.objects.filtered_from_my_params(
         species_ids=species_ids,
         datasets_ids=datasets_ids,
+        basis_of_record_ids=basis_of_record_ids,
         start_date=start_date,
         end_date=end_date,
         areas_ids=areas_ids,
         status_for_user=status_for_user,
         initial_data_import_ids=initial_data_import_ids,
         user=user,
+        verified_filter=verified_filter,
     )
 
 
@@ -125,14 +129,17 @@ def filters_from_request(
 ) -> tuple[
     list[int],
     list[int],
+    list[int],
     datetime.date | None,
     datetime.date | None,
     list[int],
     str | None,
     list[int],
+    str | None,
 ]:
     species_ids = extract_int_array_request(request, "speciesIds[]")
     datasets_ids = extract_int_array_request(request, "datasetsIds[]")
+    basis_of_record_ids = extract_int_array_request(request, "basisOfRecordIds[]")
     start_date = extract_date_request(request, "startDate")
     end_date = extract_date_request(request, "endDate")
     areas_ids = extract_int_array_request(request, "areaIds[]")
@@ -140,15 +147,18 @@ def filters_from_request(
     initial_data_import_ids = extract_int_array_request(
         request, "initialDataImportIds[]"
     )
+    verified_filter = extract_str_request(request, "verifiedFilter")
 
     return (
         species_ids,
         datasets_ids,
+        basis_of_record_ids,
         start_date,
         end_date,
         areas_ids,
         status_for_user,
         initial_data_import_ids,
+        verified_filter,
     )
 
 
@@ -198,7 +208,9 @@ def create_or_refresh_single_materialized_view(hex_size_meters: int):
            obs.id,
            obs.species_id,
            obs.source_dataset_id,
+           obs.basis_of_record_id,
            obs.initial_data_import_id,
+           obs.verified,
            obs.date,
            obs.location,
            floor(ST_X(obs.location) / params.horiz_spacing)::int AS hex_col,

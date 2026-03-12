@@ -14,7 +14,15 @@
 ## Testing / typing
 This project provides the following tools to ensure the application and code stays in a decent state:
 
-- Standard Django tests (can be run with `$ ./manage.py test`), including Selenium-based testing for frontend features and high-level tests
+- Standard Django tests, including Selenium-based testing for frontend features and high-level tests
+
+  Tests are split into two groups to avoid PostgreSQL deadlocks caused by concurrent `TRUNCATE`
+  operations from `TransactionTestCase`/`StaticLiveServerTestCase` teardowns:
+
+  - **Parallel** (most tests - `TestCase` subclasses): `$ python manage.py test --parallel --exclude-tag=sequential`
+  - **Sequential** (`TransactionTestCase` and Selenium tests): `$ python manage.py test --tag=sequential`
+
+  Running `$ python manage.py test` without flags also works and is safe, but slower.
 - Typing: can be checked with `$ mypy .`
 
 Those should be run frequently on the developer's machines, but will also be executed by GitHub actions each time the code is pushed to GitHub (see the CI-CD section)
@@ -171,7 +179,7 @@ This tool can also be used to manually activate maintenance mode during complex 
 
 - Make sure all tests pass and mypy doesn't report any error
 - Update CHANGELOG.md
-- Update version number in `pyproject.toml`, `package.json` and `docker-compose.yml` (! 3 services: gbif-alert, rqworker and nginx)
+- Update version number in `pyproject.toml`, `package.json`, `docker-compose.yml` (! 3 services: gbif-alert, rqworker and nginx) and `VERSION` (used to display the version in the footer - se the exact tag name with a 'v' here for correct footer link!)
 - ! The version number currently also appears in INSTALL.md
 - Commit, merge to main, push to GitHub
 - Create a new tag (e.g. `v1.1.0`) and push it:

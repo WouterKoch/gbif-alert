@@ -1,4 +1,4 @@
-import {AreaInformation, DashboardFilters, DataRow, DatasetInformation, SpeciesInformation} from "./interfaces";
+import {AreaInformation, BasisOfRecordInformation, DashboardFilters, DataRow, DatasetInformation, SpeciesInformation} from "./interfaces";
 import {DateTime} from "luxon";
 import {hsl} from "d3-color";
 
@@ -84,5 +84,9 @@ export function prepareDatasetsData(datasetsData: DatasetInformation[]): DataRow
     return datasetsData.map((d) => {
         return {id: d.id, columnData: [d.name, d.gbifKey]};
     });
+}
+
+export function prepareBasisOfRecordData(data: BasisOfRecordInformation[]): DataRow[] {
+    return data.map((b) => ({id: b.id, columnData: [b.name]}));
 }
 

@@ -4,7 +4,7 @@ from django.contrib.gis.geos import Point
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from dashboard.models import Observation, Species, DataImport, Dataset
+from dashboard.models import BasisOfRecord, Observation, Species, DataImport, Dataset
 
 SAMPLE_DATASET_KEY = "940821c0-3269-11df-855a-b8a03c50a862"
 SAMPLE_OCCURRENCE_ID = "BR:IFBL: 00494798"
@@ -18,6 +18,10 @@ class StableIdentifiersTests(TestCase):
     def setUp(self):
         # Not possible to replace this by setUpTestData because some methods alter the observation => this code should
         # therefore be run before each method.
+        self.basis_of_record = BasisOfRecord.objects.create(
+            name="HUMAN_OBSERVATION"
+        )
+
         self.species_p_fallax = Species.objects.create(
             name="Procambarus fallax", gbif_taxon_key=8879526
         )
@@ -34,6 +38,7 @@ class StableIdentifiersTests(TestCase):
                 name="Test dataset", gbif_dataset_key=SAMPLE_DATASET_KEY
             ),
             location=Point(5.09513, 50.48941, srid=4326),  # Andenne
+            basis_of_record=self.basis_of_record,
         )
 
     def test_stable_correct_value(self):

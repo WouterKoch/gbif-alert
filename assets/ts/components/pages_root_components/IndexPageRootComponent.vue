@@ -42,6 +42,21 @@
 
           <Filter-Selector
               class="mx-2"
+              :button-label-singular="$t('message.basisOfRecord')"
+              :button-label-suffix-plural="$t('message.xSelectedBasisOfRecord')"
+              :no-selection-button-label="$t('message.allBasisOfRecord')"
+              :modal-title="$t('message.basisOfRecordToInclude')"
+              :entries="availableBasisOfRecordAsDataRows"
+              :selector-columns-config="[
+                  {label: $t('message.name'), dataIndex: 0}
+              ]"
+              :label-index="0"
+              :initially-selected-entries-ids="filters.basisOfRecordIds"
+              @entries-changed="changeSelectedBasisOfRecord"
+          ></Filter-Selector>
+
+          <Filter-Selector
+              class="mx-2"
               :button-label-singular="$t('message.area')"
               :button-label-suffix-plural="$t('message.xSelectedAreas')"
               :no-selection-button-label="$t('message.everywhere')"
@@ -65,6 +80,7 @@
           </Filter-Selector>
 
           <Filter-Selector
+              v-if="showInitialDataImportFilter"
               class="mx-2"
               :button-label-singular="$t('message.initialDataImport')"
               :button-label-suffix-plural="$t('message.xSelectedInitialDataImports')"
@@ -76,8 +92,17 @@
               :selector-initial-sort-direction="'desc'"
               :label-index="0"
               :initially-selected-entries-ids="filters.initialDataImportIds"
-              @entries-changed="changeSelectedInitialDataImport"
+              @entries-changed="changeSelectedInitialDataImport "
           ></Filter-Selector>
+
+          <div class="mx-2 d-flex align-items-center">
+            <label class="me-1 text-nowrap">{{ $t('message.verificationFilter') }}:</label>
+            <select v-model="filters.verifiedFilter" class="form-select form-select-sm">
+              <option value="all">{{ $t('message.all') }}</option>
+              <option value="verified">{{ $t('message.verifiedOnly') }}</option>
+              <option value="unverified">{{ $t('message.unverifiedOnly') }}</option>
+            </select>
+          </div>
 
           <ObservationStatusSelector
               v-if="frontendConfig.authenticatedUser"
@@ -101,6 +126,7 @@
 import {defineComponent} from "vue";
 import {
   AreaInformation,
+  BasisOfRecordInformation,
   DashboardFilters,
   DataImportInformation,
   DataRow,
@@ -117,7 +143,7 @@ import Observations from "../Observations.vue";
 import BootstrapAlert from "../BootstrapAlert.vue";
 
 import {debounce, DebouncedFunc} from "lodash";
-import {dateTimeToFilterParam, prepareAreasData, prepareDatasetsData, prepareSpeciesData} from "../../helpers";
+import {dateTimeToFilterParam, prepareAreasData, prepareBasisOfRecordData, prepareDatasetsData, prepareSpeciesData} from "../../helpers";
 
 declare const gbifAlertConfig: FrontEndConfig;
 declare const initialFilters: DashboardFilters;
@@ -126,10 +152,11 @@ interface IndexPageRootComponentData {
   frontendConfig: FrontEndConfig;
   availableSpecies: SpeciesInformation[];
   availableDatasets: DatasetInformation[];
+  availableBasisOfRecord: BasisOfRecordInformation[];
   availableAreas: AreaInformation[];
   availableDataImports: DataImportInformation[];
   filters: DashboardFilters;
-  debouncedUpdateDateFilters: null | DebouncedFunc<(range: DateRange) => void>;
+  debouncedUpdateDateFilters: DebouncedFunc<(range: DateRange) => void> | undefined;
 }
 
 export default defineComponent({
@@ -147,12 +174,13 @@ export default defineComponent({
 
       availableSpecies: [],
       availableDatasets: [],
+      availableBasisOfRecord: [],
       availableAreas: [],
       availableDataImports: [],
 
       filters: initialFilters,
 
-      debouncedUpdateDateFilters: null,
+      debouncedUpdateDateFilters: undefined,
     };
   },
   computed: {
@@ -162,6 +190,9 @@ export default defineComponent({
     availableDatasetsAsDataRows: function (): DataRow[] {
       return prepareDatasetsData(this.availableDatasets);
     },
+    availableBasisOfRecordAsDataRows: function (): DataRow[] {
+      return prepareBasisOfRecordData(this.availableBasisOfRecord);
+    },
     availableAreasAsDataRows: function (): DataRow[] {
       return prepareAreasData(this.availableAreas, this.$t);
     },
@@ -170,6 +201,9 @@ export default defineComponent({
           .map((d) => {
             return {id: d.id, columnData: [d.id, d.name, (new Date(d.startTimestamp)).toLocaleString()]};
           });
+    },
+    showInitialDataImportFilter: function (): boolean {
+      return (initialFilters.initialDataImportIds?.length ?? 0) > 0;
     },
   },
   created() {
@@ -186,26 +220,29 @@ export default defineComponent({
   },
   methods: {
     // TODO: remove duplication, original in helpers.ts
-    scientificNameFormatter: function (rawValue: string, highlightedValue: string): string {
+    scientificNameFormatter: function (_rawValue: string | number, highlightedValue: string): string {
       return `<i>${highlightedValue}</i>`;
     },
     // TODO: remove duplication, original in helpers.ts
-    gbifTaxonKeyFormatter: function (rawValue: string, highlightedValue: string): string {
+    gbifTaxonKeyFormatter: function (rawValue: string | number, highlightedValue: string): string {
       return `<a href="https://www.gbif.org/species/${rawValue}" target="_blank">${highlightedValue}</a>`;
     },
-    gbifDatasetKeyFormatter: function (rawValue: string, highlightedValue: string): string {
+    gbifDatasetKeyFormatter: function (rawValue: string | number, highlightedValue: string): string {
       return `<a class="small" href="https://www.gbif.org/dataset/${rawValue}" target="_blank">${highlightedValue}</a>`;
     },
-    changeSelectedSpecies: function (speciesIds: Number[]) {
+    changeSelectedSpecies: function (speciesIds: number[]) {
       this.filters.speciesIds = speciesIds;
     },
-    changeSelectedDatasets: function (datasetsIds: Number[]) {
+    changeSelectedDatasets: function (datasetsIds: number[]) {
       this.filters.datasetsIds = datasetsIds;
     },
-    changeSelectedAreas: function (areasIds: Number[]) {
+    changeSelectedBasisOfRecord: function (basisOfRecordIds: number[]) {
+      this.filters.basisOfRecordIds = basisOfRecordIds;
+    },
+    changeSelectedAreas: function (areasIds: number[]) {
       this.filters.areaIds = areasIds;
     },
-    changeSelectedInitialDataImport: function (dataImportsIds: Number[]) {
+    changeSelectedInitialDataImport: function (dataImportsIds: number[]) {
       this.filters.initialDataImportIds = dataImportsIds;
     },
     populateAvailableDatasets: function () {
@@ -213,6 +250,13 @@ export default defineComponent({
           .get(this.frontendConfig.apiEndpoints.datasetsListUrl)
           .then((response) => {
             this.availableDatasets = response.data;
+          });
+    },
+    populateAvailableBasisOfRecord: function () {
+      axios
+          .get(this.frontendConfig.apiEndpoints.basisOfRecordListUrl)
+          .then((response) => {
+            this.availableBasisOfRecord = response.data;
           });
     },
     populateAvailableSpecies: function () {
@@ -241,6 +285,7 @@ export default defineComponent({
   mounted: function () {
     this.populateAvailableSpecies();
     this.populateAvailableDatasets();
+    this.populateAvailableBasisOfRecord();
     this.populateAvailableAreas();
     this.populateAvailableDataImports();
   },

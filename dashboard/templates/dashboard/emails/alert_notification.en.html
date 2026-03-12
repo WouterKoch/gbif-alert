@@ -60,6 +60,7 @@ observations and details.</p>
     <li><b>Species:</b> {{ alert.species_list|default:"all" }}</li>
     <li><b>Areas:</b> {{ alert.areas_list|default:"all" }}</li>
     <li><b>Datasets: </b> {{ alert.datasets_list|default:"all" }}</li>
+    <li><b>Basis of record: </b> {{ alert.basis_of_record_list|default:"all" }}</li>
     <li>
         <b>Email notifications frequency:</b>
         {{ alert.get_email_notifications_frequency_display }}</li>

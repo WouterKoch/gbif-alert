@@ -59,6 +59,7 @@
     <li><b>Soort:</b> {{ alert.species_list|default:"alle soorten" }}</li>
     <li><b>Gebied:</b> {{ alert.areas_list|default:"alle gebieden" }}</li>
     <li><b>Datasets: </b> {{ alert.datasets_list|default:"alle datasets" }}</li>
+    <li><b>Type waarneming: </b> {{ alert.basis_of_record_list|default:"alle" }}</li>
     <li>
         <b>Frequentie email notificaties:</b>
         {{ alert.get_email_notifications_frequency_display }}</li>
