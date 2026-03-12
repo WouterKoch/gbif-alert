@@ -27,6 +27,11 @@ RUN poetry config virtualenvs.in-project true && \
 
 COPY . /app
 
+# Use template as default settings if no custom local_settings_docker.py exists
+RUN if [ ! -f /app/djangoproject/local_settings_docker.py ]; then \
+      cp /app/djangoproject/local_settings_docker.template.py /app/djangoproject/local_settings_docker.py; \
+    fi
+
 SHELL ["/bin/bash", "--login", "-c"]
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v$NVM_VERSION/install.sh | bash \
     && . $NVM_DIR/nvm.sh \
