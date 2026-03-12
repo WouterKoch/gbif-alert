@@ -27,6 +27,9 @@ WHERE_CLAUSE = readable_string(
         {{% if datasets_ids %}}
             AND obs.source_dataset_id IN {{{{ datasets_ids | inclause }}}}
         {{% endif %}}
+        {{% if basis_of_record_ids %}}
+            AND obs.basis_of_record_id IN {{{{ basis_of_record_ids | inclause }}}}
+        {{% endif %}}
         {{% if start_date %}}
             AND obs.date >= TO_DATE({{{{ start_date }}}}, 'YYYY-MM-DD')
         {{% endif %}}
@@ -38,6 +41,12 @@ WHERE_CLAUSE = readable_string(
         {{% endif %}}
         {{% if initial_data_import_ids %}}
             AND obs.initial_data_import_id IN {{{{ initial_data_import_ids | inclause }}}}
+        {{% endif %}}
+        {{% if verified_filter == 'verified' %}}
+            AND obs.verified = true
+        {{% endif %}}
+        {{% if verified_filter == 'unverified' %}}
+            AND obs.verified = false
         {{% endif %}}
         {{% if status == 'seen' %}}
             AND NOT (EXISTS(
@@ -95,18 +104,22 @@ def _build_filter_params(request: HttpRequest) -> dict:
     (
         species_ids,
         datasets_ids,
+        basis_of_record_ids,
         start_date,
         end_date,
         area_ids,
         status_for_user,
         initial_data_import_ids,
+        verified_filter,
     ) = filters_from_request(request)
 
     params: dict = {
         "species_ids": species_ids,
         "datasets_ids": datasets_ids,
+        "basis_of_record_ids": basis_of_record_ids,
         "area_ids": area_ids,
         "initial_data_import_ids": initial_data_import_ids,
+        "verified_filter": verified_filter,
     }
 
     if status_for_user and request.user.is_authenticated:

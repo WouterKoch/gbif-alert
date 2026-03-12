@@ -15,6 +15,7 @@ from dashboard.models import (
     Species,
     DataImport,
     Dataset,
+    BasisOfRecord,
     ObservationComment,
     Alert,
     Area,
@@ -299,6 +300,8 @@ class WebPagesTests(TestCase):
             gbif_dataset_key="4fa7b334-ce0d-4e88-aaae-2e0c138d049e",
         )
 
+        basis_of_record = BasisOfRecord.objects.create(name="HUMAN_OBSERVATION")
+
         di = DataImport.objects.create(start=timezone.now())
 
         cls.first_obs = Observation.objects.create(
@@ -316,7 +319,7 @@ class WebPagesTests(TestCase):
             locality="Andenne centre",
             municipality="Andenne",
             recorded_by="Nicolas Noé",
-            basis_of_record="HUMAN_OBSERVATION",
+            basis_of_record=basis_of_record,
             coordinate_uncertainty_in_meters=10,
             references="https://www.google.com",
         )
@@ -333,6 +336,7 @@ class WebPagesTests(TestCase):
             initial_data_import=di,
             source_dataset=dataset,
             location=Point(5.09513, 50.48941, srid=4326),  # Andenne
+            basis_of_record=basis_of_record,
             references="this is not an URL",
         )
 
@@ -433,6 +437,7 @@ class WebPagesTests(TestCase):
                 gbif_dataset_key="azerty",
             ),
             location=Point(5.09513, 50.48941, srid=4326),
+            basis_of_record=BasisOfRecord.objects.get_or_create(name="HUMAN_OBSERVATION")[0],
         )
 
         # case 1: no references is data: field is not shown
@@ -494,6 +499,7 @@ class WebPagesTests(TestCase):
                 gbif_dataset_key="azerty",
             ),
             location=Point(5.09513, 50.48941, srid=4326),
+            basis_of_record=BasisOfRecord.objects.get_or_create(name="HUMAN_OBSERVATION")[0],
         )
 
         # case 1: coordinates uncertainty unknown

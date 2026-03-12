@@ -15,6 +15,7 @@ from dashboard.models import (
     Alert,
     ObservationComment,
     ObservationUnseen,
+    BasisOfRecord,
 )
 from page_fragments.models import PageFragment
 
@@ -42,6 +43,8 @@ class UserTests(TestCase):
             gbif_dataset_key="4fa7b334-ce0d-4e88-aaae-2e0c138d049e",
         )
 
+        cls.basis_of_record = BasisOfRecord.objects.create(name="HUMAN_OBSERVATION")
+
         cls.observation = Observation.objects.create(
             gbif_id=1,
             occurrence_id="1",
@@ -53,6 +56,7 @@ class UserTests(TestCase):
             initial_data_import=di,
             source_dataset=cls.source_dataset,
             location=Point(5.09513, 50.48941, srid=4326),  # Andenne
+            basis_of_record=cls.basis_of_record,
         )
 
         # The observation is unseen

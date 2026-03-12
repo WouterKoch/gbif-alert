@@ -3,6 +3,7 @@ import re
 import time
 
 from django.conf import settings
+from django.test import tag
 from django.contrib.auth import get_user_model
 from django.contrib.gis.geos import Point
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
@@ -26,6 +27,7 @@ from dashboard.models import (
     Observation,
     Alert,
     ObservationUnseen,
+    BasisOfRecord,
 )
 from dashboard.views.helpers import create_or_refresh_all_materialized_views
 
@@ -60,6 +62,7 @@ def _get_webdriver() -> WebDriver:
     },
     DEBUG=True,
 )
+@tag("sequential")
 class SeleniumTestsCommon(StaticLiveServerTestCase):
     """Common test data and Selenium-related plumbing"""
 
@@ -105,6 +108,8 @@ class SeleniumTestsCommon(StaticLiveServerTestCase):
             gbif_dataset_key="aaa7b334-ce0d-4e88-aaae-2e0c138d049f",
         )
 
+        self.basis_of_record = BasisOfRecord.objects.create(name="HUMAN_OBSERVATION")
+
         self.obs_1 = Observation.objects.create(
             gbif_id=1,
             occurrence_id="1",
@@ -114,6 +119,7 @@ class SeleniumTestsCommon(StaticLiveServerTestCase):
             initial_data_import=di,
             source_dataset=self.first_dataset,
             location=Point(5.09513, 50.48941, srid=4326),
+            basis_of_record=self.basis_of_record,
         )
         self.obs_2 = Observation.objects.create(
             gbif_id=2,
@@ -124,6 +130,7 @@ class SeleniumTestsCommon(StaticLiveServerTestCase):
             initial_data_import=di,
             source_dataset=self.second_dataset,
             location=Point(4.35978, 50.64728, srid=4326),
+            basis_of_record=self.basis_of_record,
         )
         self.obs_3 = Observation.objects.create(
             gbif_id=3,
@@ -134,6 +141,7 @@ class SeleniumTestsCommon(StaticLiveServerTestCase):
             initial_data_import=di,
             source_dataset=self.second_dataset,
             location=Point(5.09513, 50.48941, srid=4326),
+            basis_of_record=self.basis_of_record,
         )
 
         # Obs 1 (and only obs_1) has been seen by the user
@@ -492,11 +500,13 @@ class SeleniumTests(SeleniumTestsCommon):
         obs_table = self.selenium.find_element(By.ID, "gbif-alert-observations-table")
         obs_table_body = obs_table.find_element(By.TAG_NAME, "tbody")
         result_rows = obs_table_body.find_elements(By.TAG_NAME, "tr")
-        self.assertEqual(len(result_rows), 3)  # 3 result rows
-        unseen_badges = obs_table_body.find_elements(
-            By.CLASS_NAME, "gbif-alert-unseen-badge"
+        self.assertEqual(
+            len(result_rows), 2
+        )  # 2 unseen result rows, selected by default
+        seen_rows = obs_table_body.find_elements(
+            By.CLASS_NAME, "gbif-alert-seen-row-marker"
         )
-        self.assertEqual(len(unseen_badges), 2)
+        self.assertEqual(len(seen_rows), 1)
 
         # Action 4: select "seen"
         observation_status_selector.find_element(By.ID, "label-btnRadioSeen").click()
@@ -1023,11 +1033,11 @@ class SeleniumTests(SeleniumTestsCommon):
         self.assertEqual(last_name_field.get_attribute("value"), "Frusciante")
         email_field = self.selenium.find_element(By.ID, "id_email")
         self.assertEqual(email_field.get_attribute("value"), "frusciante@gmail.com")
-        motification_delay_days_field = self.selenium.find_element(
-            By.ID, "id_notification_delay_days"
-        )
-        # Users have one year of delay by default
-        self.assertEqual(motification_delay_days_field.get_attribute("value"), "365")
+        delay_value_field = self.selenium.find_element(By.ID, "id_delay_value")
+        delay_unit_select = Select(self.selenium.find_element(By.ID, "id_delay_unit"))
+        # Users have one year of delay by default (365 days -> displayed as 1 year)
+        self.assertEqual(delay_value_field.get_attribute("value"), "1")
+        self.assertEqual(delay_unit_select.first_selected_option.get_attribute("value"), "years")
 
         # Let's update the values
         first_name_field.clear()
@@ -1036,8 +1046,9 @@ class SeleniumTests(SeleniumTestsCommon):
         last_name_field.send_keys("Palmer")
         email_field.clear()
         email_field.send_keys("palmer@gmail.com")
-        motification_delay_days_field.clear()
-        motification_delay_days_field.send_keys("30")
+        delay_value_field.clear()
+        delay_value_field.send_keys("1")
+        delay_unit_select.select_by_value("months")  # 1 month = 30 days
         save_button = self.selenium.find_element(
             By.ID, "gbif-alert-profile-save-button"
         )
@@ -1067,11 +1078,11 @@ class SeleniumTests(SeleniumTestsCommon):
         self.assertEqual(last_name_field.get_attribute("value"), "Palmer")
         email_field = self.selenium.find_element(By.ID, "id_email")
         self.assertEqual(email_field.get_attribute("value"), "palmer@gmail.com")
-        motification_delay_days_field = self.selenium.find_element(
-            By.ID, "id_notification_delay_days"
-        )
-        # Users have one year of delay by default
-        self.assertEqual(motification_delay_days_field.get_attribute("value"), "30")
+        delay_value_field = self.selenium.find_element(By.ID, "id_delay_value")
+        delay_unit_select = Select(self.selenium.find_element(By.ID, "id_delay_unit"))
+        # 30 days was saved, which rounds back to 1 month
+        self.assertEqual(delay_value_field.get_attribute("value"), "1")
+        self.assertEqual(delay_unit_select.first_selected_option.get_attribute("value"), "months")
 
     def test_no_profile_page_if_not_logged(self):
         """We try to access the profile page directly from the URL, without being signed in"""

@@ -13,7 +13,7 @@ def latest_data_import_processor(_: HttpRequest):
         data_import = None
     return {
         "latest_data_import": data_import,
-        "git_version_number": human_readable_git_version_number,
+        "git_version_number": human_readable_git_version_number(),
     }
 
 

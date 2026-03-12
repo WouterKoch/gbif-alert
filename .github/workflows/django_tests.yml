@@ -63,11 +63,17 @@ jobs:
       run: npm install
     - name: Run webpack
       run: npm run webpack-prod
-    - name: Run Django tests
+    - name: Run Django tests (parallel)
       env:
         DJANGO_SETTINGS_MODULE: djangoproject.local_settings
       run: |
         source .venv/bin/activate
-        python manage.py test
+        python manage.py test --parallel --exclude-tag=sequential
+    - name: Run Django tests (sequential - TransactionTestCase and Selenium)
+      env:
+        DJANGO_SETTINGS_MODULE: djangoproject.local_settings
+      run: |
+        source .venv/bin/activate
+        python manage.py test --tag=sequential
     - name: Run mypy
       run: poetry run mypy --install-types --non-interactive .

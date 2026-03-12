@@ -204,6 +204,11 @@ class CustomXsdElementVernacularNameFR(XSDElementForceStringType):
         return instance.species.vernacular_name_fr
 
 
+class CustomXsdElementBasisOfRecord(XSDElementForceStringType):
+    def get_value(self, instance):
+        return instance.basis_of_record.name
+
+
 class CustomXsdElementDatasetName(XSDElementForceStringType):
     def get_value(self, instance):
         return instance.source_dataset.name
@@ -262,10 +267,15 @@ class ObservationsWFSView(WFSView):
                 "individual_count",
                 "locality",
                 "municipality",
-                "basis_of_record",
+                field(
+                    "basis_of_record",
+                    model_attribute="basis_of_record",
+                    xsd_class=CustomXsdElementBasisOfRecord,
+                ),
                 "recorded_by",
                 "coordinate_uncertainty_in_meters",
                 "references",
+                "verified",
             ],
         ),
     ]

@@ -16,6 +16,7 @@ from dashboard.models import (
     ObservationComment,
     ObservationUnseen,
     User,
+    BasisOfRecord,
 )
 
 SEPTEMBER_13_2021 = datetime.datetime.strptime("2021-09-13", "%Y-%m-%d").date()
@@ -142,6 +143,8 @@ class ActionTests(TestCase):
 
         di = DataImport.objects.create(start=timezone.now())
 
+        cls.basis_of_record = BasisOfRecord.objects.create(name="HUMAN_OBSERVATION")
+
         cls.observation = Observation.objects.create(
             gbif_id=1,
             occurrence_id="1",
@@ -156,6 +159,7 @@ class ActionTests(TestCase):
                 gbif_dataset_key="4fa7b334-ce0d-4e88-aaae-2e0c138d049e",
             ),
             location=Point(5.09513, 50.48941, srid=4326),
+            basis_of_record=cls.basis_of_record,
         )
 
         cls.user_comment = ObservationComment.objects.create(

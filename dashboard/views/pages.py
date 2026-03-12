@@ -40,7 +40,7 @@ def index_page(request: HttpRequest) -> HttpResponse:
     if filters_from_url is not None:
         filters_for_template = filters_from_url
     else:
-        filters_for_template = {}
+        filters_for_template = {"status": "unseen"}
 
     return render(
         request,

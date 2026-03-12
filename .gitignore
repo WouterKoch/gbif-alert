@@ -131,3 +131,6 @@ dmypy.json
 /node_modules/
 .idea
 /TODO.md
+
+static/
+djangoproject/maintenance_mode_state.txt

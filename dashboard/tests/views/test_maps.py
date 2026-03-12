@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from dashboard.models import (
+    BasisOfRecord,
     Observation,
     Species,
     DataImport,
@@ -26,6 +27,10 @@ class MapsTestDataMixin(object):
 
     @classmethod
     def setUpTestData(cls):
+        cls.basis_of_record = BasisOfRecord.objects.create(
+            name="HUMAN_OBSERVATION"
+        )
+
         cls.first_species = Species.objects.create(
             name="Procambarus fallax", gbif_taxon_key=8879526
         )
@@ -51,6 +56,7 @@ class MapsTestDataMixin(object):
             initial_data_import=cls.di,
             source_dataset=cls.first_dataset,
             location=Point(5.09513, 50.48941, srid=4326),  # Andenne
+            basis_of_record=cls.basis_of_record,
         )
         Observation.objects.create(
             gbif_id=2,
@@ -61,6 +67,7 @@ class MapsTestDataMixin(object):
             initial_data_import=cls.di,
             source_dataset=cls.second_dataset,
             location=Point(4.35978, 50.64728, srid=4326),  # Lillois
+            basis_of_record=cls.basis_of_record,
         )
 
         cls.public_area_andenne = Area.objects.create(
@@ -154,6 +161,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois, bakkerij
+            basis_of_record=self.basis_of_record,
         )
 
         create_or_refresh_materialized_views(zoom_levels=[8, 1, 13])
@@ -193,6 +201,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois, bakkerij
+            basis_of_record=self.basis_of_record,
         )
 
         create_or_refresh_materialized_views(zoom_levels=[8])
@@ -226,6 +235,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
             location=Point(5.095610, 50.48800, srid=4326),
+            basis_of_record=self.basis_of_record,
         )
 
         create_or_refresh_materialized_views(zoom_levels=[8])
@@ -249,6 +259,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=self.di,
             source_dataset=self.second_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois, bakkerij
+            basis_of_record=self.basis_of_record,
         )
 
         create_or_refresh_materialized_views(zoom_levels=[8])
@@ -282,6 +293,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
             location=Point(5.095610, 50.48800, srid=4326),
+            basis_of_record=self.basis_of_record,
         )
 
         create_or_refresh_materialized_views(zoom_levels=[8])
@@ -291,6 +303,88 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             data={"zoom": 8, "speciesIds[]": self.second_species.pk},
         )
 
+        self.assertEqual(response.json()["min"], 1)
+        self.assertEqual(response.json()["max"], 2)
+
+    def test_min_max_per_hexagon_with_basis_of_record_filter(self):
+        second_bor = BasisOfRecord.objects.create(name="MACHINE_OBSERVATION")
+        # Add a third observation at the same location as obs2 (Lillois) with a different basis of record
+        Observation.objects.create(
+            gbif_id=3,
+            occurrence_id="3BOR",
+            species=self.second_species,
+            date=datetime.date.today(),
+            data_import=self.di,
+            initial_data_import=self.di,
+            source_dataset=self.first_dataset,
+            location=Point(4.35978, 50.64728, srid=4326),  # Lillois (same as obs2)
+            basis_of_record=second_bor,
+        )
+
+        create_or_refresh_materialized_views(zoom_levels=[8])
+
+        # Filter by HUMAN_OBSERVATION: Andenne=1, Lillois=1 -> min=1, max=1
+        response = self.client.get(
+            reverse("dashboard:internal-api:maps:mvt-min-max-per-hexagon"),
+            data={"zoom": 8, "basisOfRecordIds[]": self.basis_of_record.pk},
+        )
+        self.assertEqual(response.json()["min"], 1)
+        self.assertEqual(response.json()["max"], 1)
+
+        # Filter by MACHINE_OBSERVATION: only Lillois=1 -> min=1, max=1
+        response = self.client.get(
+            reverse("dashboard:internal-api:maps:mvt-min-max-per-hexagon"),
+            data={"zoom": 8, "basisOfRecordIds[]": second_bor.pk},
+        )
+        self.assertEqual(response.json()["min"], 1)
+        self.assertEqual(response.json()["max"], 1)
+
+        # Without filter: Andenne=1, Lillois=2 -> min=1, max=2
+        response = self.client.get(
+            reverse("dashboard:internal-api:maps:mvt-min-max-per-hexagon"),
+            data={"zoom": 8},
+        )
+        self.assertEqual(response.json()["min"], 1)
+        self.assertEqual(response.json()["max"], 2)
+
+    def test_min_max_per_hexagon_with_verified_filter(self):
+        # Add a third observation at Lillois with verified=True (obs1 and obs2 are unverified by default)
+        Observation.objects.create(
+            gbif_id=3,
+            occurrence_id="3VER",
+            species=self.second_species,
+            date=datetime.date.today(),
+            data_import=self.di,
+            initial_data_import=self.di,
+            source_dataset=self.first_dataset,
+            location=Point(4.35978, 50.64728, srid=4326),  # Lillois (same as obs2)
+            basis_of_record=self.basis_of_record,
+            verified=True,
+        )
+
+        create_or_refresh_materialized_views(zoom_levels=[8])
+
+        # Filter for verified only: only obs3 in Lillois -> min=1, max=1
+        response = self.client.get(
+            reverse("dashboard:internal-api:maps:mvt-min-max-per-hexagon"),
+            data={"zoom": 8, "verifiedFilter": "verified"},
+        )
+        self.assertEqual(response.json()["min"], 1)
+        self.assertEqual(response.json()["max"], 1)
+
+        # Filter for unverified only: obs1 in Andenne + obs2 in Lillois -> min=1, max=1
+        response = self.client.get(
+            reverse("dashboard:internal-api:maps:mvt-min-max-per-hexagon"),
+            data={"zoom": 8, "verifiedFilter": "unverified"},
+        )
+        self.assertEqual(response.json()["min"], 1)
+        self.assertEqual(response.json()["max"], 1)
+
+        # Without filter: Andenne=1, Lillois=2 -> min=1, max=2
+        response = self.client.get(
+            reverse("dashboard:internal-api:maps:mvt-min-max-per-hexagon"),
+            data={"zoom": 8},
+        )
         self.assertEqual(response.json()["min"], 1)
         self.assertEqual(response.json()["max"], 2)
 
@@ -315,6 +409,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=self.di,
             source_dataset=self.second_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois, bakkerij
+            basis_of_record=self.basis_of_record,
         )
 
         self.client.login(username="frusciante", password="12345")
@@ -342,6 +437,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=self.di,
             source_dataset=self.second_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois, bakkerij
+            basis_of_record=self.basis_of_record,
         )
 
         create_or_refresh_materialized_views(zoom_levels=[8])
@@ -368,6 +464,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=self.di,
             source_dataset=self.second_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois, bakkerij
+            basis_of_record=self.basis_of_record,
         )
 
         create_or_refresh_materialized_views(zoom_levels=[8])
@@ -419,6 +516,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=second_di,
             source_dataset=self.first_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois
+            basis_of_record=self.basis_of_record,
         )
 
         create_or_refresh_materialized_views(zoom_levels=[8])
@@ -458,6 +556,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois
+            basis_of_record=self.basis_of_record,
         )
 
         create_or_refresh_materialized_views(zoom_levels=[8])
@@ -489,6 +588,7 @@ class MinMaxPerHexagonTests(MapsTestDataMixin, TestCase):
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois
+            basis_of_record=self.basis_of_record,
         )
 
         create_or_refresh_materialized_views(zoom_levels=[8])
@@ -661,6 +761,104 @@ class MVTServerSingleObsTests(MapsTestDataMixin, MVTServerCommonTestsMixin, Test
             decoded_tile["default"]["features"][0]["properties"]["gbif_id"], "2"
         )
 
+    def test_tiles_basis_of_record_filter(self):
+        second_bor = BasisOfRecord.objects.create(name="MACHINE_OBSERVATION")
+        # Add a third observation at the same location as obs2 (Lillois) with a different basis of record
+        Observation.objects.create(
+            gbif_id=3,
+            occurrence_id="3BOR",
+            species=self.second_species,
+            date=datetime.date.today(),
+            data_import=self.di,
+            initial_data_import=self.di,
+            source_dataset=self.second_dataset,
+            location=Point(4.35978, 50.64728, srid=4326),  # Lillois (same as obs2)
+            basis_of_record=second_bor,
+        )
+
+        # Case 1: A large view over Wallonia, filter by MACHINE_OBSERVATION
+        base_url = reverse(
+            self.server_url_name,
+            kwargs={"zoom": 2, "x": 2, "y": 1},
+        )
+        url_with_params = f"{base_url}?basisOfRecordIds[]={second_bor.pk}"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        # Only the new observation should be present
+        self.assertEqual(len(decoded_tile["default"]["features"]), 1)
+        self.assertEqual(
+            decoded_tile["default"]["features"][0]["properties"]["gbif_id"], "3"
+        )
+
+        # Case 2: Zoom to Andenne, filter by MACHINE_OBSERVATION: no observation
+        base_url = reverse(
+            self.server_url_name,
+            kwargs={"zoom": 10, "x": 526, "y": 345},
+        )
+        url_with_params = f"{base_url}?basisOfRecordIds[]={second_bor.pk}"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(decoded_tile, {})
+
+        # Case 3: Zoom to Lillois, filter by MACHINE_OBSERVATION: obs3 visible
+        base_url = reverse(
+            self.server_url_name,
+            kwargs={"zoom": 17, "x": 67123, "y": 44083},
+        )
+        url_with_params = f"{base_url}?basisOfRecordIds[]={second_bor.pk}"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(len(decoded_tile["default"]["features"]), 1)
+        self.assertEqual(
+            decoded_tile["default"]["features"][0]["properties"]["gbif_id"], "3"
+        )
+
+    def test_tiles_verified_filter(self):
+        # Add a third observation at Lillois with verified=True (obs1 and obs2 are unverified by default)
+        Observation.objects.create(
+            gbif_id=3,
+            occurrence_id="3VER",
+            species=self.second_species,
+            date=datetime.date.today(),
+            data_import=self.di,
+            initial_data_import=self.di,
+            source_dataset=self.second_dataset,
+            location=Point(4.35978, 50.64728, srid=4326),  # Lillois (same as obs2)
+            basis_of_record=self.basis_of_record,
+            verified=True,
+        )
+
+        # Case 1: Large view over Wallonia, filter by verified: only obs3
+        base_url = reverse(
+            self.server_url_name,
+            kwargs={"zoom": 2, "x": 2, "y": 1},
+        )
+        url_with_params = f"{base_url}?verifiedFilter=verified"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(len(decoded_tile["default"]["features"]), 1)
+        self.assertEqual(
+            decoded_tile["default"]["features"][0]["properties"]["gbif_id"], "3"
+        )
+
+        # Case 2: Filter by unverified: obs1 and obs2 only (2 features)
+        url_with_params = f"{base_url}?verifiedFilter=unverified"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(len(decoded_tile["default"]["features"]), 2)
+        gbif_ids = {f["properties"]["gbif_id"] for f in decoded_tile["default"]["features"]}
+        self.assertEqual(gbif_ids, {"1", "2"})
+
+        # Case 3: Zoom to Andenne, filter by verified: no obs (obs1 in Andenne is unverified)
+        base_url = reverse(
+            self.server_url_name,
+            kwargs={"zoom": 10, "x": 526, "y": 345},
+        )
+        url_with_params = f"{base_url}?verifiedFilter=verified"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(decoded_tile, {})
+
     def test_tiles_start_date_filter(self):
         """Use the startDate parameter to filter out observations that are too old"""
         # Case 1: A large view over Wallonia
@@ -803,6 +1001,7 @@ class MVTServerSingleObsTests(MapsTestDataMixin, MVTServerCommonTestsMixin, Test
             initial_data_import=second_di,
             source_dataset=self.first_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois
+            basis_of_record=self.basis_of_record,
         )
 
         base_url = reverse(
@@ -1169,6 +1368,116 @@ class MVTServerAggregatedObsTests(
         decoded_tile = mapbox_vector_tile.decode(response.content)
         self.assertEqual(decoded_tile, {})
 
+    def test_tiles_basis_of_record_filter(self):
+        second_bor = BasisOfRecord.objects.create(name="MACHINE_OBSERVATION")
+        # Add a third observation at the same location as obs2 (Lillois) with a different basis of record
+        Observation.objects.create(
+            gbif_id=3,
+            occurrence_id="3BOR",
+            species=self.second_species,
+            date=datetime.date.today(),
+            data_import=self.di,
+            initial_data_import=self.di,
+            source_dataset=self.second_dataset,
+            location=Point(4.35978, 50.64728, srid=4326),  # Lillois (same as obs2)
+            basis_of_record=second_bor,
+        )
+
+        # Case 1: Large-scale view: a single hex over Wallonia
+        base_url = reverse(
+            self.server_url_name,
+            kwargs={"zoom": 2, "x": 2, "y": 1},
+        )
+        # Filter by HUMAN_OBSERVATION: count should be 2 (obs1 + obs2)
+        url_with_params = f"{base_url}?basisOfRecordIds[]={self.basis_of_record.pk}"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(len(decoded_tile["default"]["features"]), 1)
+        self.assertEqual(
+            decoded_tile["default"]["features"][0]["properties"]["count"], 2
+        )
+
+        # Filter by MACHINE_OBSERVATION: count should be 1 (only obs3 in Lillois)
+        url_with_params = f"{base_url}?basisOfRecordIds[]={second_bor.pk}"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(len(decoded_tile["default"]["features"]), 1)
+        self.assertEqual(
+            decoded_tile["default"]["features"][0]["properties"]["count"], 1
+        )
+
+        # Case 2: Zoom on Andenne, filter by MACHINE_OBSERVATION: should be empty
+        base_url = reverse(
+            self.server_url_name,
+            kwargs={"zoom": 10, "x": 526, "y": 345},
+        )
+        url_with_params = f"{base_url}?basisOfRecordIds[]={second_bor.pk}"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(decoded_tile, {})
+
+        # Case 3: Zoom on Lillois, filter by MACHINE_OBSERVATION: count=1
+        base_url = reverse(
+            self.server_url_name,
+            kwargs={"zoom": 14, "x": 8390, "y": 5510},
+        )
+        url_with_params = f"{base_url}?basisOfRecordIds[]={second_bor.pk}"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(len(decoded_tile["default"]["features"]), 1)
+        self.assertEqual(
+            decoded_tile["default"]["features"][0]["properties"]["count"], 1
+        )
+
+    def test_tiles_verified_filter(self):
+        # Add a third observation at Lillois with verified=True (obs1 and obs2 are unverified by default)
+        Observation.objects.create(
+            gbif_id=3,
+            occurrence_id="3VER",
+            species=self.second_species,
+            date=datetime.date.today(),
+            data_import=self.di,
+            initial_data_import=self.di,
+            source_dataset=self.second_dataset,
+            location=Point(4.35978, 50.64728, srid=4326),  # Lillois (same as obs2)
+            basis_of_record=self.basis_of_record,
+            verified=True,
+        )
+
+        # Case 1: Large-scale view over Wallonia (single hex)
+        base_url = reverse(
+            self.server_url_name,
+            kwargs={"zoom": 2, "x": 2, "y": 1},
+        )
+
+        # Filter by verified: count should be 1 (only obs3)
+        url_with_params = f"{base_url}?verifiedFilter=verified"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(len(decoded_tile["default"]["features"]), 1)
+        self.assertEqual(
+            decoded_tile["default"]["features"][0]["properties"]["count"], 1
+        )
+
+        # Filter by unverified: count should be 2 (obs1 + obs2)
+        url_with_params = f"{base_url}?verifiedFilter=unverified"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(len(decoded_tile["default"]["features"]), 1)
+        self.assertEqual(
+            decoded_tile["default"]["features"][0]["properties"]["count"], 2
+        )
+
+        # Case 2: Zoom on Andenne, filter by verified: should be empty (obs1 is unverified)
+        base_url = reverse(
+            self.server_url_name,
+            kwargs={"zoom": 10, "x": 526, "y": 345},
+        )
+        url_with_params = f"{base_url}?verifiedFilter=verified"
+        response = self.client.get(url_with_params)
+        decoded_tile = mapbox_vector_tile.decode(response.content)
+        self.assertEqual(decoded_tile, {})
+
     def test_tiles_species_multiple_species_filters(self):
         # Test based on test_tiles_species_filter(self), but with two species explicitly requested
 
@@ -1185,6 +1494,7 @@ class MVTServerAggregatedObsTests(
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
             location=Point(4.35978, 50.64728, srid=4326),  # Lillois
+            basis_of_record=self.basis_of_record,
         )
         Observation.objects.create(
             gbif_id=1001,
@@ -1195,6 +1505,7 @@ class MVTServerAggregatedObsTests(
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
             location=Point(4.35978, 50.64728, srid=4326),  # Lillois
+            basis_of_record=self.basis_of_record,
         )
         Observation.objects.create(
             gbif_id=1002,
@@ -1205,6 +1516,7 @@ class MVTServerAggregatedObsTests(
             initial_data_import=self.di,
             source_dataset=self.first_dataset,
             location=Point(4.35978, 50.64728, srid=4326),  # Lillois
+            basis_of_record=self.basis_of_record,
         )
 
         # Case 1: Large-scale view: a single hex over Wallonia
@@ -1395,6 +1707,7 @@ class MVTServerAggregatedObsTests(
             initial_data_import=second_di,
             source_dataset=self.first_dataset,
             location=Point(4.36229, 50.64628, srid=4326),  # Lillois
+            basis_of_record=self.basis_of_record,
         )
 
         base_url = reverse(

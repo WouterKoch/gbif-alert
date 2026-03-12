@@ -1,3 +1,12 @@
+# 1.9.0 (2026-03-06)
+
+- Allow to filter observations per basis of record
+- By default, (at page load), only unseen observations are shown
+- Allow to filter observations per validation status
+- Multiple user interface improvements (https://github.com/riparias/gbif-alert/issues/145, https://github.com/riparias/gbif-alert/issues/296, https://github.com/riparias/gbif-alert/issues/290, ...)
+- Updated backend and frontend dependencies
+- Multiple internal improvements (https://github.com/riparias/gbif-alert/issues/282, ...)
+
 # 1.8.0 (2026-02-04)
 
 - Observations are automatically marked as seen after a configurable delay (default: 1 year). Users can configure this delay in their profile settings.
@@ -11,7 +20,7 @@
 
 # v1.7.7 (2024-11-07)
 
-- Fixed a bg with the maps API (see https://github.com/riparias/gbif-alert/issues/283)
+- Fixed a bug with the maps API (see https://github.com/riparias/gbif-alert/issues/283)
 
 # v1.7.6 (2024-07-26)
 

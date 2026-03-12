@@ -181,6 +181,23 @@ class Dataset(models.Model):
         self.__original_gbif_dataset_key = self.gbif_dataset_key
 
 
+class BasisOfRecord(models.Model):
+    name = models.TextField(unique=True)
+
+    def __str__(self) -> str:
+        return self.name
+
+    class Meta:
+        ordering = ["name"]
+
+    @property
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.pk,
+            "name": self.name,
+        }
+
+
 class DataImport(models.Model):
     start = models.DateTimeField()
     end = models.DateTimeField(blank=True, null=True)
@@ -236,9 +253,12 @@ def create_unseen_observations(observation_queryset: QuerySet["Observation"]) ->
     # Collect all ObservationUnseen objects to create in bulk
     unseen_to_create = []
 
-    # Prefetch alerts with their related species/datasets/areas to avoid N+1 queries
+    # Prefetch alerts with their related species/datasets/basis_of_record/areas to avoid N+1 queries
     users_with_alerts = User.objects.prefetch_related(
-        "alert_set__species", "alert_set__datasets", "alert_set__areas"
+        "alert_set__species",
+        "alert_set__datasets",
+        "alert_set__basis_of_record_filters",
+        "alert_set__areas",
     ).all()
 
     for user in users_with_alerts:
@@ -257,12 +277,17 @@ def create_unseen_observations(observation_queryset: QuerySet["Observation"]) ->
         if not user_alerts:
             continue
 
-        # Collect species/dataset/area IDs from all alerts
+        # Collect species/dataset/basis_of_record/area IDs from all alerts
         all_species_ids = set()
         all_dataset_ids = set()
+        all_basis_of_record_ids = set()
         all_area_ids = set()
         has_alert_without_dataset_filter = False
+        has_alert_without_basis_of_record_filter = False
         has_alert_without_area_filter = False
+        has_alert_without_verified_filter = False
+        wants_verified = False
+        wants_unverified = False
 
         for alert in user_alerts:
             species_ids = {s.pk for s in alert.species.all()}  # Prefetched
@@ -273,10 +298,24 @@ def create_unseen_observations(observation_queryset: QuerySet["Observation"]) ->
                 has_alert_without_dataset_filter = True
             all_dataset_ids.update(dataset_ids)
 
+            basis_of_record_ids = {
+                b.pk for b in alert.basis_of_record_filters.all()
+            }  # Prefetched
+            if not basis_of_record_ids:
+                has_alert_without_basis_of_record_filter = True
+            all_basis_of_record_ids.update(basis_of_record_ids)
+
             area_ids = {a.pk for a in alert.areas.all()}  # Prefetched
             if not area_ids:
                 has_alert_without_area_filter = True
             all_area_ids.update(area_ids)
+
+            if alert.verified_filter == Alert.VERIFIED_FILTER_ALL:
+                has_alert_without_verified_filter = True
+            elif alert.verified_filter == Alert.VERIFIED_FILTER_VERIFIED_ONLY:
+                wants_verified = True
+            elif alert.verified_filter == Alert.VERIFIED_FILTER_UNVERIFIED_ONLY:
+                wants_unverified = True
 
         # Build a single query for observations matching ANY of the user's alerts
         # This is a simplified/conservative approach: we check if observation matches
@@ -289,6 +328,11 @@ def create_unseen_observations(observation_queryset: QuerySet["Observation"]) ->
                 source_dataset_id__in=all_dataset_ids
             )
 
+        if all_basis_of_record_ids and not has_alert_without_basis_of_record_filter:
+            matching_obs_qs = matching_obs_qs.filter(
+                basis_of_record_id__in=all_basis_of_record_ids
+            )
+
         if all_area_ids and not has_alert_without_area_filter:
             from django.contrib.gis.db.models.aggregates import Union as AggregateUnion
 
@@ -299,6 +343,12 @@ def create_unseen_observations(observation_queryset: QuerySet["Observation"]) ->
                 matching_obs_qs = matching_obs_qs.filter(
                     location__within=combined_areas
                 )
+
+        if not has_alert_without_verified_filter:
+            if wants_verified and not wants_unverified:
+                matching_obs_qs = matching_obs_qs.filter(verified=True)
+            elif wants_unverified and not wants_verified:
+                matching_obs_qs = matching_obs_qs.filter(verified=False)
 
         # Collect unseen entries for bulk creation
         for obs in matching_obs_qs:
@@ -314,12 +364,14 @@ class ObservationManager(models.Manager["Observation"]):
         self,
         species_ids: list[int],
         datasets_ids: list[int],
+        basis_of_record_ids: list[int],
         start_date: datetime.date | None,
         end_date: datetime.date | None,
         areas_ids: list[int],
         status_for_user: str | None,
         initial_data_import_ids: list[int],
         user: User | None,  # mandatory if status_for_user is set
+        verified_filter: str | None = None,
     ) -> QuerySet["Observation"]:
         # !! IMPORTANT !! Make sure the observation filtering here is equivalent to what's done in
         # views.maps.JINJASQL_FRAGMENT_FILTER_OBSERVATIONS. Otherwise, observations returned on the map and on other
@@ -328,12 +380,15 @@ class ObservationManager(models.Manager["Observation"]):
         qs = self.model.objects.select_related(
             "species",
             "source_dataset",
+            "basis_of_record",
         ).all()
 
         if species_ids:
             qs = qs.filter(species_id__in=species_ids)
         if datasets_ids:
             qs = qs.filter(source_dataset_id__in=datasets_ids)
+        if basis_of_record_ids:
+            qs = qs.filter(basis_of_record_id__in=basis_of_record_ids)
         if start_date:
             qs = qs.filter(date__gte=start_date)
         if end_date:
@@ -353,41 +408,12 @@ class ObservationManager(models.Manager["Observation"]):
             elif status_for_user == "unseen":
                 qs = qs.filter(observationunseen__in=ous)
 
+        if verified_filter == "verified":
+            qs = qs.filter(verified=True)
+        elif verified_filter == "unverified":
+            qs = qs.filter(verified=False)
+
         return qs
-
-
-# def migrate_unseen_observations() -> None:
-#     # TODO: this one is bugged and sometimes delete freshly created unseen observations
-#     """Migrate unseen observations to new observations or delete them if they are no longer relevant."""
-#     unseen_observations = ObservationUnseen.objects.select_related(
-#         "observation", "user"
-#     ).all()
-#     to_delete = []
-#     to_update = []
-#
-#     for unseen in unseen_observations:
-#         new_observation = (
-#             Observation.objects.filter(
-#                 stable_id=unseen.observation.stable_id,
-#                 data_import__gt=unseen.observation.data_import,
-#             )
-#             .order_by("data_import")
-#             .first()
-#         )
-#
-#         if new_observation:
-#             if unseen.relevant_for_user(date_new_observation=new_observation.date):
-#                 unseen.observation = new_observation
-#                 to_update.append(unseen)
-#             else:
-#                 to_delete.append(unseen.pk)
-#         else:
-#             to_delete.append(unseen.pk)
-#
-#     if to_delete:
-#         ObservationUnseen.objects.filter(pk__in=to_delete).delete()
-#     if to_update:
-#         ObservationUnseen.objects.bulk_update(to_update, ["observation"])
 
 
 def migrate_unseen_observations(current_data_import: "DataImport") -> None:
@@ -528,7 +554,12 @@ class Observation(models.Model):
     individual_count = models.IntegerField(blank=True, null=True)
     locality = models.TextField(blank=True)
     municipality = models.TextField(blank=True)
-    basis_of_record = models.TextField(blank=True)
+    basis_of_record = models.ForeignKey(BasisOfRecord, on_delete=models.CASCADE)
+    identification_verification_status = models.CharField(
+        max_length=255, blank=True
+    )  # As provided by GBIF, not normalized
+    verified = models.BooleanField(default=False)
+
     recorded_by = models.TextField(blank=True)
     coordinate_uncertainty_in_meters = models.FloatField(blank=True, null=True)
     references = models.TextField(blank=True)
@@ -910,6 +941,16 @@ class Alert(models.Model):
     WEEKLY_EMAILS = "W"
     MONTHLY_EMAILS = "M"
 
+    VERIFIED_FILTER_ALL = "all"
+    VERIFIED_FILTER_VERIFIED_ONLY = "verified"
+    VERIFIED_FILTER_UNVERIFIED_ONLY = "unverified"
+
+    VERIFIED_FILTER_CHOICES = [
+        (VERIFIED_FILTER_ALL, "All observations"),
+        (VERIFIED_FILTER_VERIFIED_ONLY, "Verified only"),
+        (VERIFIED_FILTER_UNVERIFIED_ONLY, "Unverified only"),
+    ]
+
     EMAIL_NOTIFICATION_CHOICES = [
         (NO_EMAILS, _("No emails")),
         (DAILY_EMAILS, _("Daily")),
@@ -945,6 +986,15 @@ class Alert(models.Model):
             "Ctrl or Command key and click the items."
         ),
     )
+    basis_of_record_filters = models.ManyToManyField(
+        BasisOfRecord,
+        verbose_name=_("basis of record"),
+        blank=True,
+        help_text=_(
+            "Optional (no selection = notify me for all basis of records). To select multiple items, press and hold the "
+            "Ctrl or Command key and click the items."
+        ),
+    )
     areas = models.ManyToManyField(
         Area,
         blank=True,
@@ -960,6 +1010,12 @@ class Alert(models.Model):
         choices=EMAIL_NOTIFICATION_CHOICES,
         default=WEEKLY_EMAILS,
         verbose_name=_("email notifications frequency"),
+    )
+
+    verified_filter = models.CharField(
+        max_length=10,
+        choices=VERIFIED_FILTER_CHOICES,
+        default=VERIFIED_FILTER_ALL,
     )
 
     last_email_sent_on = models.DateTimeField(blank=True, null=True, default=None)
@@ -979,6 +1035,16 @@ class Alert(models.Model):
         return ", ".join(self.datasets.order_by("name").values_list("name", flat=True))
 
     @property
+    def basis_of_record_list(self) -> str:
+        return ", ".join(
+            self.basis_of_record_filters.order_by("name").values_list("name", flat=True)
+        )
+
+    @property
+    def verified_filter_display(self) -> str:
+        return dict(self.VERIFIED_FILTER_CHOICES).get(self.verified_filter, self.verified_filter)
+
+    @property
     def species_list(self) -> str:
         return ", ".join(self.species.order_by("name").values_list("name", flat=True))
 
@@ -992,10 +1058,12 @@ class Alert(models.Model):
         return {
             "speciesIds": [s.pk for s in self.species.all()],
             "datasetsIds": [d.pk for d in self.datasets.all()],
+            "basisOfRecordIds": [b.pk for b in self.basis_of_record_filters.all()],
             "areaIds": [a.pk for a in self.areas.all()],
             "startDate": None,
             "endDate": None,
-            "status": None,
+            "status": "unseen",
+            "verifiedFilter": self.verified_filter,
         }
 
     @property
@@ -1005,8 +1073,10 @@ class Alert(models.Model):
             "name": self.name,
             "speciesIds": [s.pk for s in self.species.all()],
             "datasetIds": [d.pk for d in self.datasets.all()],
+            "basisOfRecordIds": [b.pk for b in self.basis_of_record_filters.all()],
             "areaIds": [a.pk for a in self.areas.all()],
             "emailNotificationsFrequency": self.email_notifications_frequency,
+            "verifiedFilter": self.verified_filter,
         }
 
     def observations(self) -> QuerySet[Observation]:
@@ -1015,12 +1085,14 @@ class Alert(models.Model):
         return Observation.objects.filtered_from_my_params(
             species_ids=[s.pk for s in self.species.all()],
             datasets_ids=[d.pk for d in self.datasets.all()],
+            basis_of_record_ids=[b.pk for b in self.basis_of_record_filters.all()],
             areas_ids=[a.pk for a in self.areas.all()],
             start_date=None,
             end_date=None,
             initial_data_import_ids=[],
             status_for_user=None,
             user=self.user,
+            verified_filter=self.verified_filter,
         )
 
     def unseen_observations(self) -> QuerySet[Observation]:
@@ -1028,12 +1100,14 @@ class Alert(models.Model):
         return Observation.objects.filtered_from_my_params(
             species_ids=[s.pk for s in self.species.all()],
             datasets_ids=[d.pk for d in self.datasets.all()],
+            basis_of_record_ids=[b.pk for b in self.basis_of_record_filters.all()],
             areas_ids=[a.pk for a in self.areas.all()],
             start_date=None,
             end_date=None,
             initial_data_import_ids=[],
             status_for_user="unseen",
             user=self.user,
+            verified_filter=self.verified_filter,
         )
 
     def unseen_observations_sample(self, sample_size=10) -> QuerySet[Observation]:

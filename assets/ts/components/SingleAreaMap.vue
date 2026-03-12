@@ -63,7 +63,10 @@ const loadAreaDetails = function (areaId: number, map: Map) {
               });
 
               map.addLayer(vectorLayer);
-              map.getView().fit(vectorSource.getExtent());
+              const extent = vectorSource.getExtent();
+              if (extent) {
+                map.getView().fit(extent);
+              }
 
               areaName.value = response.data["features"][0]["properties"]["name"];
             });

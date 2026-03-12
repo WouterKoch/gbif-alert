@@ -12,16 +12,15 @@
       />
       <label for="checkbox" class="form-check-label small">
         {{ $t("message.enableDateRangeFiltering") }}
-      </label
-      >
+      </label>
     </div>
     <range-slider
         v-if="dataLoaded && dateRangeFilteringEnabled"
         :numberOfMonths="numberOfMonths"
         :initialValues="[selectedRangeStartIndex, selectedRangeEndIndex]"
-        :leftMargin="this.svgStyle.margin.left"
-        :rightMargin="this.svgStyle.margin.right"
-        :sliderDisabled="!this.dateRangeFilteringEnabled"
+        :leftMargin="svgStyle.margin.left"
+        :rightMargin="svgStyle.margin.right"
+        :sliderDisabled="!dateRangeFilteringEnabled"
         @update-value="rangeUpdated"
     >
     </range-slider>
@@ -60,8 +59,10 @@
   </div>
 </template>
 
-<script lang="ts">
-import {defineComponent} from "vue";
+<script setup lang="ts">
+import {computed, reactive, ref, watch} from "vue";
+import type {DirectiveBinding, ObjectDirective} from "vue";
+
 import {scaleBand, scaleLinear} from "d3-scale";
 import {max} from "d3-array";
 import {PreparedHistogramDataEntry} from "../interfaces";
@@ -69,194 +70,158 @@ import {axisBottom, axisLeft, format, ScaleBand, select} from "d3";
 import {DateTime, Interval} from "luxon";
 import RangeSlider from "./RangeSlider.vue";
 
-export default defineComponent({
-  name: "BarChart",
-  components: {RangeSlider},
-  props: {
-    barData: {
+const props = withDefaults(
+    defineProps<{
       // Data must be sorted before being passed to the chart
-      required: true,
-      type: Object as () => PreparedHistogramDataEntry[],
-    },
-    numberOfXTicks: {
-      type: Number,
-      default: 15,
-    },
-    dataLoaded: {
-      type: Boolean,
-    },
-  },
-  emits: ["selectedRangeUpdated"],
-  data: function () {
-    return {
-      svgStyle: {
-        margin: {
-          top: 10,
-          right: 30,
-          bottom: 30,
-          left: 40,
-        },
-        width: 1116,
-        height: 170,
-      },
-      selectedRangeStart: this.datetimeToMonthStr(
-          DateTime.now().minus({years: 1})
-      ),
-      selectedRangeEnd: this.datetimeToMonthStr(DateTime.now()),
+      barData: PreparedHistogramDataEntry[];
+      numberOfXTicks?: number;
+      dataLoaded?: boolean;
+    }>(),
+    {numberOfXTicks: 15}
+);
 
-      dateRangeFilteringEnabled: false,
+const emit = defineEmits<{
+  selectedRangeUpdated: [payload: { start: DateTime | null; end: DateTime | null }];
+}>();
 
-      //numberOfMonths: 60,
-    };
-  },
-  directives: {
-    yaxis: {
-      beforeUpdate(el, binding): void {
-        const scaleFunction = binding.value.scale;
+// --- State ---
 
-        // Filter out non-integer values
-        const yAxisTicks = scaleFunction
-            .ticks(4)
-            .filter((tick: Number) => Number.isInteger(tick));
-
-        const yAxis = axisLeft<number>(scaleFunction)
-            .tickValues(yAxisTicks)
-            .tickFormat(format("d"));
-        yAxis(select(el as unknown as SVGGElement));
-      },
-    },
-    xaxis: {
-      beforeUpdate(el, binding): void {
-        const scaleFunction = binding.value.scale;
-        const numberOfTicks = binding.value.ticks;
-        const numberOfElems = scaleFunction.domain().length;
-        const moduloVal = Math.floor(numberOfElems / numberOfTicks);
-
-        const d3Axis = axisBottom<number>(scaleFunction).tickValues(
-            scaleFunction.domain().filter(function (_: string, i: number) {
-              return !(i % moduloVal);
-            })
-        );
-        d3Axis(select(el as unknown as SVGGElement)); // TODO: TS: There's probably a better solution than this double casting
-      },
-    },
-  },
-  methods: {
-    emitSelectedRange() {
-      let rangeStartDate = null;
-      let rangeEndDate = null;
-      if (this.dateRangeFilteringEnabled) {
-        rangeStartDate = this.monthStrToDateTime(this.selectedRangeStart);
-        rangeEndDate = this.monthStrToDateTime(this.selectedRangeEnd);
-      }
-      this.$emit("selectedRangeUpdated", {
-        start: rangeStartDate,
-        end: rangeEndDate,
-      });
-    },
-    monthStrToDateTime(m: string): DateTime {
-      // The first day of the month is returned
-      const split = m.split("-");
-      return DateTime.fromObject({
-        year: parseInt(split[0]),
-        month: parseInt(split[1]),
-        day: 1,
-      });
-    },
-    datetimeToMonthStr(d: DateTime): string {
-      return d.year + "-" + d.month;
-    },
-    rangeUpdated(indexes: number[]) {
-      this.selectedRangeStart = this.barData[indexes[0]].yearMonth;
-      this.selectedRangeEnd = this.barData[indexes[1]].yearMonth;
-      this.emitSelectedRange();
-    },
-  },
-  watch: {
-    dateRangeFilteringEnabled: function () {
-      this.emitSelectedRange();
-    },
-  },
-  computed: {
-    numberOfMonths(): number {
-      return this.barData.length;
-    },
-    selectedRangeStartIndex(): number {
-      return this.barData.findIndex((e: PreparedHistogramDataEntry) => {
-        return e.yearMonth === this.selectedRangeStart;
-      });
-    },
-    selectedRangeEndIndex(): number {
-      return this.barData.findIndex((e: PreparedHistogramDataEntry) => {
-        return e.yearMonth === this.selectedRangeEnd;
-      });
-    },
-    dataMax(): number {
-      const maxVal = max(
-          this.barData,
-          (d: PreparedHistogramDataEntry) => {
-            return d.count;
-          }
-      );
-      return maxVal ? maxVal : 0;
-    },
-    barDataIsEmpty(): boolean {
-      const hasZeroCount = (e: PreparedHistogramDataEntry) => e.count === 0;
-      return this.barData.every(hasZeroCount);
-    },
-    /*truncatedBarData(): PreparedHistogramDataEntry[] {
-      return this.barData.filter((e: PreparedHistogramDataEntry) =>
-          this.xScaleDomain.includes(e.yearMonth)
-      );
-    },*/
-    endDate(): DateTime {
-      return DateTime.now();
-    },
-    startDate(): DateTime {
-      return this.endDate.minus({month: this.numberOfMonths});
-    },
-    xScaleDomain(): string[] {
-      function* months(interval: Interval) {
-        let cursor = interval.start!.startOf("month");
-        while (cursor < interval!.end!) {
-          yield cursor;
-          cursor = cursor.plus({months: 1});
-        }
-      }
-
-      const interval = Interval.fromDateTimes(this.startDate, this.endDate);
-
-      return Array.from(months(interval)).map((m: DateTime) =>
-          this.datetimeToMonthStr(m)
-      );
-    },
-    xScale(): ScaleBand<string> {
-      return scaleBand()
-          .range([0, this.svgInnerWidth])
-          .paddingInner(0.3)
-          .domain(this.xScaleDomain);
-    },
-    yScale() {
-      return scaleLinear()
-          .rangeRound([this.svgInnerHeight, 0])
-          .domain([0, this.dataMax]);
-    },
-    svgInnerWidth: function (): number {
-      return (
-          this.svgStyle.width -
-          this.svgStyle.margin.left -
-          this.svgStyle.margin.right
-      );
-    },
-    svgInnerHeight: function (): number {
-      return (
-          this.svgStyle.height -
-          this.svgStyle.margin.top -
-          this.svgStyle.margin.bottom
-      );
-    },
-  },
+const svgStyle = reactive({
+  margin: {top: 10, right: 30, bottom: 30, left: 40},
+  width: 1116,
+  height: 170,
 });
+
+const dateRangeFilteringEnabled = ref(false);
+
+// --- Helpers ---
+
+function datetimeToMonthStr(d: DateTime): string {
+  return d.year + "-" + d.month;
+}
+
+function monthStrToDateTime(m: string): DateTime {
+  const split = m.split("-");
+  return DateTime.fromObject({
+    year: parseInt(split[0]),
+    month: parseInt(split[1]),
+    day: 1,
+  });
+}
+
+// Initialized after datetimeToMonthStr is defined
+const selectedRangeStart = ref(datetimeToMonthStr(DateTime.now().minus({years: 1})));
+const selectedRangeEnd = ref(datetimeToMonthStr(DateTime.now()));
+
+// --- Methods ---
+
+function emitSelectedRange() {
+  let rangeStartDate: DateTime | null = null;
+  let rangeEndDate: DateTime | null = null;
+  if (dateRangeFilteringEnabled.value) {
+    rangeStartDate = monthStrToDateTime(selectedRangeStart.value);
+    rangeEndDate = monthStrToDateTime(selectedRangeEnd.value);
+  }
+  emit("selectedRangeUpdated", {start: rangeStartDate, end: rangeEndDate});
+}
+
+function rangeUpdated(indexes: number[]) {
+  selectedRangeStart.value = props.barData[indexes[0]].yearMonth;
+  selectedRangeEnd.value = props.barData[indexes[1]].yearMonth;
+  emitSelectedRange();
+}
+
+// --- Watchers ---
+
+watch(dateRangeFilteringEnabled, () => {
+  emitSelectedRange();
+});
+
+// --- Computed ---
+
+const numberOfMonths = computed(() => props.barData.length);
+
+const svgInnerWidth = computed(
+    () => svgStyle.width - svgStyle.margin.left - svgStyle.margin.right
+);
+
+const svgInnerHeight = computed(
+    () => svgStyle.height - svgStyle.margin.top - svgStyle.margin.bottom
+);
+
+const endDate = computed(() => DateTime.now());
+const startDate = computed(() => endDate.value.minus({month: numberOfMonths.value}));
+
+const xScaleDomain = computed((): string[] => {
+  function* months(interval: Interval) {
+    let cursor = interval.start!.startOf("month");
+    while (cursor < interval.end!) {
+      yield cursor;
+      cursor = cursor.plus({months: 1});
+    }
+  }
+
+  const interval = Interval.fromDateTimes(startDate.value, endDate.value);
+  return Array.from(months(interval)).map((m: DateTime) => datetimeToMonthStr(m));
+});
+
+const xScale = computed((): ScaleBand<string> =>
+    scaleBand()
+        .range([0, svgInnerWidth.value])
+        .paddingInner(0.3)
+        .domain(xScaleDomain.value)
+);
+
+const dataMax = computed((): number => {
+  const maxVal = max(props.barData, (d: PreparedHistogramDataEntry) => d.count);
+  return maxVal ?? 0;
+});
+
+const yScale = computed(() =>
+    scaleLinear().rangeRound([svgInnerHeight.value, 0]).domain([0, dataMax.value])
+);
+
+const barDataIsEmpty = computed(() =>
+    props.barData.every((e: PreparedHistogramDataEntry) => e.count === 0)
+);
+
+const selectedRangeStartIndex = computed(() =>
+    props.barData.findIndex((e: PreparedHistogramDataEntry) => e.yearMonth === selectedRangeStart.value)
+);
+
+const selectedRangeEndIndex = computed(() =>
+    props.barData.findIndex((e: PreparedHistogramDataEntry) => e.yearMonth === selectedRangeEnd.value)
+);
+
+// --- Directives ---
+// In <script setup>, variables prefixed with `v` are automatically available as directives in the template.
+// vYaxis → v-yaxis, vXaxis → v-xaxis
+
+const vYaxis: ObjectDirective<SVGGElement> = {
+  beforeUpdate(el, binding: DirectiveBinding): void {
+    const scaleFunction = binding.value.scale;
+    const yAxisTicks = scaleFunction
+        .ticks(4)
+        .filter((tick: number) => Number.isInteger(tick));
+    const yAxis = axisLeft<number>(scaleFunction)
+        .tickValues(yAxisTicks)
+        .tickFormat(format("d"));
+    yAxis(select(el));
+  },
+};
+
+const vXaxis: ObjectDirective<SVGGElement> = {
+  beforeUpdate(el, binding: DirectiveBinding): void {
+    const scaleFunction = binding.value.scale;
+    const numberOfTicks = binding.value.ticks;
+    const numberOfElems = scaleFunction.domain().length;
+    const moduloVal = Math.floor(numberOfElems / numberOfTicks);
+    const d3Axis = axisBottom<string>(scaleFunction).tickValues(
+        scaleFunction.domain().filter((_: string, i: number) => !(i % moduloVal))
+    );
+    d3Axis(select(el));
+  },
+};
 </script>
 
 <style scoped>
