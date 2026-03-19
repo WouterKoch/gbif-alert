@@ -134,3 +134,4 @@ dmypy.json
 
 static/
 djangoproject/maintenance_mode_state.txt
+djangoproject/local_settings_docker.py
