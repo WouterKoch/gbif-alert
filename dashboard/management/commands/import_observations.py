@@ -28,6 +28,7 @@ from dashboard.models import (
     create_unseen_observations,
     migrate_unseen_observations,
 )
+from dashboard.import_progress import set_progress, clear_progress
 from dashboard.views.helpers import (
     create_or_refresh_materialized_views,
 )
@@ -360,6 +361,7 @@ class Command(BaseCommand):
             root_logger.setLevel(logging.DEBUG)
 
         self.log_with_time("(Re)importing all observations")
+        set_progress("starting", "Starting import process...")
 
         # 1. Data preparation / download
         gbif_predicate = None
@@ -373,6 +375,7 @@ class Command(BaseCommand):
             self.log_with_time(
                 "Triggering a GBIF download and waiting for it - this can be long..."
             )
+            set_progress("downloading", "Downloading data from GBIF (this can take several minutes)...")
 
             tmp_file = tempfile.NamedTemporaryFile(delete=False)
             source_data_path = tmp_file.name
@@ -389,11 +392,13 @@ class Command(BaseCommand):
                 output_path=source_data_path,
             )
             self.log_with_time("Observations downloaded")
+            set_progress("downloaded", "GBIF download complete")
 
         self.log_with_time(
             "We now have a (locally accessible) source dwca, real import is starting. We'll use a transaction and put the website in maintenance mode"
         )
 
+        set_progress("importing", "Entering maintenance mode, starting database transaction...")
         set_maintenance_mode(True)
         with transaction.atomic():
             transaction.on_commit(self.flag_transaction_as_successful)
@@ -407,6 +412,7 @@ class Command(BaseCommand):
             )
 
             # 3. Pre-import all the datasets and basis of record values
+            set_progress("importing", "Pre-importing datasets and basis of record values...")
             self.log_with_time(
                 "3. Pre-importing all datasets and basis of record values"
             )
@@ -475,6 +481,7 @@ class Command(BaseCommand):
                 current_data_import.set_gbif_download_id(
                     extract_gbif_download_id_from_dwca(dwca)
                 )
+                set_progress("importing", "Importing observations from DwC-A file...")
                 self.log_with_time("Importing all rows")
                 current_data_import.skipped_observations_counter = (
                     self._import_all_observations_from_dwca(
@@ -490,9 +497,11 @@ class Command(BaseCommand):
             self.log_with_time("All observations imported")
 
             # Migrate the unseen objects, or delete them if they are not relevant anymore
+            set_progress("importing", "Migrating unseen observations...")
             self.log_with_time("Migrating unseen observations")
             migrate_unseen_observations(current_data_import)
 
+            set_progress("importing", "Deleting previous observations...")
             self.log_with_time(
                 "now deleting observations linked to previous data imports..."
             )
@@ -500,6 +509,7 @@ class Command(BaseCommand):
             Observation.objects.exclude(data_import=current_data_import).delete()
             self.log_with_time("Previous observations deleted")
 
+            set_progress("refreshing_views", "Refreshing materialized views (this can take a while)...")
             self.log_with_time(
                 "We'll now create or refresh the materialized views. This can take a while."
             )
@@ -509,6 +519,7 @@ class Command(BaseCommand):
                 zoom_levels=[settings.ZOOM_LEVEL_FOR_MIN_MAX_QUERY]
             )
 
+            set_progress("importing", "Cleaning up unused datasets and basis of records...")
             # 8. Remove unused Dataset entries (and edit related alerts)
             # Optimization: use annotation to find empty datasets in ONE query
             empty_datasets = (
@@ -566,8 +577,16 @@ class Command(BaseCommand):
         self.log_with_time("Sending email report")
         if self.transaction_was_successful:
             send_successful_import_email()
+            elapsed_time = time.time() - start_time
+            elapsed_minutes = int(elapsed_time // 60)
+            elapsed_seconds = int(elapsed_time % 60)
+            set_progress(
+                "completed",
+                f"Import completed successfully in {elapsed_minutes}m {elapsed_seconds}s",
+            )
         else:
             send_error_import_email()
+            set_progress("failed", "Import failed - transaction was not successful")
 
         elapsed_time = time.time() - start_time
         elapsed_minutes = int(elapsed_time // 60)

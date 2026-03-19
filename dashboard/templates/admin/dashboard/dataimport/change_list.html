@@ -1,0 +1,157 @@
+{% extends "admin/change_list.html" %}
+
+{% block object-tools-items %}
+  <li>
+    <button type="button" id="import-btn" class="button" onclick="triggerImport()">
+      Import observations from GBIF
+    </button>
+  </li>
+  {{ block.super }}
+{% endblock %}
+
+{% block content %}
+  <div id="import-status" style="display:none; margin-bottom: 20px; padding: 12px 16px; border: 1px solid var(--border-color, #ccc); border-radius: 4px; background: var(--darkened-bg, #f8f8f8); color: var(--body-fg, #333);">
+    <strong>Import status:</strong>
+    <span id="import-message">—</span>
+    <span id="import-elapsed" style="margin-left: 12px; opacity: 0.7;"></span>
+  </div>
+
+  {{ block.super }}
+
+  <script>
+    const triggerUrl = "{% url 'admin:dashboard_dataimport_trigger_import' %}";
+    const progressUrl = "{% url 'admin:dashboard_dataimport_import_progress' %}";
+    let pollInterval = null;
+    let importStartTime = null;
+    // Timestamp (seconds) of when we triggered the import — used to ignore stale progress
+    let triggerTimestamp = null;
+
+    function getCookie(name) {
+      const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+      return v ? v.pop() : '';
+    }
+
+    function triggerImport() {
+      if (!confirm('Start a new GBIF observations import? The site will be in maintenance mode during the import.')) {
+        return;
+      }
+      const btn = document.getElementById('import-btn');
+      btn.disabled = true;
+      btn.textContent = 'Starting...';
+
+      fetch(triggerUrl, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': getCookie('csrftoken'),
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      }).then(r => {
+        if (!r.ok) throw new Error('Server error ' + r.status);
+        importStartTime = Date.now();
+        triggerTimestamp = Date.now() / 1000;
+        startPolling();
+      }).catch(err => {
+        btn.disabled = false;
+        btn.textContent = 'Import observations from GBIF';
+        alert('Failed to start import: ' + err.message);
+      });
+    }
+
+    function updateElapsed() {
+      if (!importStartTime) return;
+      const el = document.getElementById('import-elapsed');
+      const seconds = Math.floor((Date.now() - importStartTime) / 1000);
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      el.textContent = `(${m}m ${s.toString().padStart(2, '0')}s)`;
+    }
+
+    function showStatus(data) {
+      const statusDiv = document.getElementById('import-status');
+      const msgEl = document.getElementById('import-message');
+      const btn = document.getElementById('import-btn');
+
+      statusDiv.style.display = 'block';
+      msgEl.textContent = data.message || data.status;
+
+      // Reset styling
+      statusDiv.style.borderColor = 'var(--border-color, #ccc)';
+      statusDiv.style.background = 'var(--darkened-bg, #f8f8f8)';
+
+      if (data.status === 'completed') {
+        statusDiv.style.borderColor = '#4a4';
+        statusDiv.style.background = 'rgba(68, 170, 68, 0.15)';
+        btn.disabled = false;
+        btn.textContent = 'Import observations from GBIF';
+      } else if (data.status === 'failed') {
+        statusDiv.style.borderColor = '#c44';
+        statusDiv.style.background = 'rgba(204, 68, 68, 0.15)';
+        btn.disabled = false;
+        btn.textContent = 'Import observations from GBIF';
+      }
+    }
+
+    function isStaleProgress(data) {
+      // If we triggered the import, only accept progress newer than when we triggered it
+      if (triggerTimestamp && data.timestamp) {
+        return data.timestamp < triggerTimestamp;
+      }
+      return false;
+    }
+
+    function startPolling() {
+      const statusDiv = document.getElementById('import-status');
+      statusDiv.style.display = 'block';
+      document.getElementById('import-message').textContent = 'Waiting for import to start...';
+
+      pollInterval = setInterval(() => {
+        updateElapsed();
+        fetch(progressUrl)
+          .then(r => r.json())
+          .then(data => {
+            if (data.status === 'idle' || isStaleProgress(data)) {
+              return;
+            }
+
+            showStatus(data);
+
+            if (data.status === 'completed' || data.status === 'failed') {
+              clearInterval(pollInterval);
+              pollInterval = null;
+              // Save the result message so it survives the reload
+              sessionStorage.setItem('importResult', JSON.stringify({
+                status: data.status,
+                message: data.message,
+              }));
+              location.reload();
+            }
+          })
+          .catch(() => {});
+      }, 2000);
+    }
+
+    // On page load: show saved result from a just-finished import
+    const savedResult = sessionStorage.getItem('importResult');
+    if (savedResult) {
+      sessionStorage.removeItem('importResult');
+      showStatus(JSON.parse(savedResult));
+    } else {
+      // Check if an import is actively running
+      fetch(progressUrl)
+        .then(r => r.json())
+        .then(data => {
+          if (!data.status || data.status === 'idle') return;
+          // Ignore completed/failed — those are from a previous import
+          if (data.status === 'completed' || data.status === 'failed') return;
+
+          // Import is actively in progress — disable button and start polling
+          const btn = document.getElementById('import-btn');
+          btn.disabled = true;
+          btn.textContent = 'Import in progress...';
+          importStartTime = data.timestamp ? data.timestamp * 1000 : Date.now();
+          triggerTimestamp = 0; // Accept all progress since we didn't trigger it
+          startPolling();
+        });
+    }
+  </script>
+{% endblock %}

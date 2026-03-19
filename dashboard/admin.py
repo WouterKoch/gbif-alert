@@ -1,10 +1,14 @@
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.contrib.gis import admin
+from django.http import JsonResponse
+from django.urls import path
 from import_export import resources  # type: ignore
 from import_export.admin import ImportExportModelAdmin  # type: ignore
 from modeltranslation.admin import TranslationAdmin  # type: ignore
 
+from .import_progress import get_progress, set_progress, clear_progress
 from .models import (
     Species,
     Observation,
@@ -77,7 +81,48 @@ class SpeciesAdmin(ImportExportModelAdmin, TranslationAdmin):
 
 @admin.register(DataImport)
 class DataImportAdmin(admin.ModelAdmin):
-    list_display = ("pk", "start", "imported_observations_counter")
+    list_display = ("pk", "start", "end", "completed", "imported_observations_counter")
+    change_list_template = "admin/dashboard/dataimport/change_list.html"
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "trigger-import/",
+                self.admin_site.admin_view(self.trigger_import_view),
+                name="dashboard_dataimport_trigger_import",
+            ),
+            path(
+                "import-progress/",
+                self.admin_site.admin_view(self.import_progress_view),
+                name="dashboard_dataimport_import_progress",
+            ),
+        ]
+        return custom_urls + urls
+
+    def trigger_import_view(self, request):
+        if request.method != "POST":
+            return JsonResponse({"error": "POST required"}, status=405)
+
+        # Check if an import is already running
+        progress = get_progress()
+        if progress and progress["status"] not in ("completed", "failed"):
+            messages.warning(request, "An import is already in progress.")
+            return JsonResponse({"error": "Import already in progress"}, status=409)
+
+        # Clear any previous progress and start the job
+        clear_progress()
+        set_progress("queued", "Import job has been queued, waiting for worker to pick it up...")
+        from .views.jobs import run_import_observations
+
+        run_import_observations.delay()
+        return JsonResponse({"status": "queued"})
+
+    def import_progress_view(self, request):
+        progress = get_progress()
+        if progress is None:
+            return JsonResponse({"status": "idle", "message": "No import running"})
+        return JsonResponse(progress)
 
 
 @admin.register(Dataset)
