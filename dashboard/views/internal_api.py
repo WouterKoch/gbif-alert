@@ -158,6 +158,7 @@ def _create_or_update_alert(
     verified_filter: str,
     user: User,
     alert_id: int | None = None,
+    area_buffer_km: float = 0.0,
 ) -> JsonResponse:
     """Create or update an alert, depending on the alert_id value"""
     if alert_id:
@@ -168,6 +169,10 @@ def _create_or_update_alert(
     alert.name = alert_name
     alert.email_notifications_frequency = email_notifications_frequency
     alert.verified_filter = verified_filter
+    try:
+        alert.area_buffer_meters = max(0, int(round(float(area_buffer_km) * 1000)))
+    except (TypeError, ValueError):
+        alert.area_buffer_meters = 0
 
     errors = {}
 
@@ -217,6 +222,7 @@ def alert(
             basis_of_record_ids=alert_data.get("basisOfRecordIds", []),
             email_notifications_frequency=alert_data["emailNotificationsFrequency"],
             verified_filter=alert_data.get("verifiedFilter", "all"),
+            area_buffer_km=alert_data.get("areaBufferKm", 0) or 0,
             user=request.user,
             alert_id=alert_id,
         )

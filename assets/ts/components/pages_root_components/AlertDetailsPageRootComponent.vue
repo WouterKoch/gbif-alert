@@ -64,6 +64,7 @@ export default defineComponent({
         datasetsIds: [],
         basisOfRecordIds: [],
         areaIds: [],
+        areaBufferKm: 0,
         initialDataImportIds: [],
         startDate: null,
         endDate: null,

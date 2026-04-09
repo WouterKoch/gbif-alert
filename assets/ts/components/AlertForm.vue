@@ -51,6 +51,13 @@
                   :columns-config="[
                     {label: $t('message.name'), dataIndex: 0}
                   ]" v-model="alertData.areaIds"></Selector>
+
+        <div class="mt-2 d-flex align-items-center" v-if="alertData.areaIds.length > 0">
+          <label class="me-2">{{ $t('message.areaBufferKm') }}:</label>
+          <input type="number" min="0" step="0.1" class="form-control form-control-sm" style="width: 8rem;"
+                 v-model.number="alertData.areaBufferKm">
+          <small class="text-muted ms-2">{{ $t('message.areaBufferHelp') }}</small>
+        </div>
       </div>
     </div>
 
@@ -175,7 +182,8 @@ const alertData = ref({
   speciesIds: [],
   datasetIds: [],
   basisOfRecordIds: [],
-  areaIds: [],
+  areaIds: [] as number[],
+  areaBufferKm: 0,
   emailNotificationsFrequency: 'W',
   verifiedFilter: 'all'
 });

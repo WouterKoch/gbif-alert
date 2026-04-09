@@ -372,6 +372,7 @@ class ObservationManager(models.Manager["Observation"]):
         initial_data_import_ids: list[int],
         user: User | None,  # mandatory if status_for_user is set
         verified_filter: str | None = None,
+        area_buffer_meters: int = 0,
     ) -> QuerySet["Observation"]:
         # !! IMPORTANT !! Make sure the observation filtering here is equivalent to what's done in
         # views.maps.JINJASQL_FRAGMENT_FILTER_OBSERVATIONS. Otherwise, observations returned on the map and on other
@@ -397,7 +398,26 @@ class ObservationManager(models.Manager["Observation"]):
             combined_areas = Area.objects.filter(pk__in=areas_ids).aggregate(
                 area=AggregateUnion("mpoly")
             )["area"]
-            qs = qs.filter(location__within=combined_areas)
+            if area_buffer_meters and area_buffer_meters > 0:
+                # Include observations within `area_buffer_meters` of the
+                # combined area boundary, in addition to those strictly inside.
+                # We measure the distance on the WGS84 ellipsoid (true meters
+                # everywhere on Earth) by casting both geometries to
+                # ``geography`` — EPSG:3857 distances would otherwise be
+                # inflated by 1/cos(latitude), which matters at high latitudes
+                # (≈2× at 60°N, ≈3× at 70°N).
+                obs_table = self.model._meta.db_table
+                qs = qs.extra(
+                    where=[
+                        f"ST_DWithin("
+                        f"{obs_table}.location::geography, "
+                        f"ST_GeomFromText(%s, %s)::geography, "
+                        f"%s)"
+                    ],
+                    params=[combined_areas.wkt, combined_areas.srid, area_buffer_meters],
+                )
+            else:
+                qs = qs.filter(location__within=combined_areas)
         if initial_data_import_ids:
             qs = qs.filter(initial_data_import_id__in=initial_data_import_ids)
 
@@ -1018,6 +1038,15 @@ class Alert(models.Model):
         default=VERIFIED_FILTER_ALL,
     )
 
+    area_buffer_meters = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("area buffer (meters)"),
+        help_text=_(
+            "Also include observations within this distance (in meters) from "
+            "the selected areas. 0 = strict containment."
+        ),
+    )
+
     last_email_sent_on = models.DateTimeField(blank=True, null=True, default=None)
 
     class Meta:
@@ -1060,6 +1089,7 @@ class Alert(models.Model):
             "datasetsIds": [d.pk for d in self.datasets.all()],
             "basisOfRecordIds": [b.pk for b in self.basis_of_record_filters.all()],
             "areaIds": [a.pk for a in self.areas.all()],
+            "areaBufferKm": self.area_buffer_meters / 1000.0,
             "startDate": None,
             "endDate": None,
             "status": "unseen",
@@ -1075,6 +1105,7 @@ class Alert(models.Model):
             "datasetIds": [d.pk for d in self.datasets.all()],
             "basisOfRecordIds": [b.pk for b in self.basis_of_record_filters.all()],
             "areaIds": [a.pk for a in self.areas.all()],
+            "areaBufferKm": self.area_buffer_meters / 1000.0,
             "emailNotificationsFrequency": self.email_notifications_frequency,
             "verifiedFilter": self.verified_filter,
         }
@@ -1093,6 +1124,7 @@ class Alert(models.Model):
             status_for_user=None,
             user=self.user,
             verified_filter=self.verified_filter,
+            area_buffer_meters=self.area_buffer_meters,
         )
 
     def unseen_observations(self) -> QuerySet[Observation]:
@@ -1108,6 +1140,7 @@ class Alert(models.Model):
             status_for_user="unseen",
             user=self.user,
             verified_filter=self.verified_filter,
+            area_buffer_meters=self.area_buffer_meters,
         )
 
     def unseen_observations_sample(self, sample_size=10) -> QuerySet[Observation]:

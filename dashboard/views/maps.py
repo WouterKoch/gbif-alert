@@ -37,7 +37,11 @@ WHERE_CLAUSE = readable_string(
             AND obs.date <= TO_DATE({{{{ end_date }}}}, 'YYYY-MM-DD')
         {{% endif %}}
         {{% if area_ids %}}
-            AND ST_Within(obs.location, areas.mpoly)
+            {{% if area_buffer_meters and area_buffer_meters > 0 %}}
+                AND ST_DWithin(obs.location::geography, areas.mpoly::geography, {{{{ area_buffer_meters }}}})
+            {{% else %}}
+                AND ST_Within(obs.location, areas.mpoly)
+            {{% endif %}}
         {{% endif %}}
         {{% if initial_data_import_ids %}}
             AND obs.initial_data_import_id IN {{{{ initial_data_import_ids | inclause }}}}
@@ -111,6 +115,7 @@ def _build_filter_params(request: HttpRequest) -> dict:
         status_for_user,
         initial_data_import_ids,
         verified_filter,
+        area_buffer_meters,
     ) = filters_from_request(request)
 
     params: dict = {
@@ -118,6 +123,7 @@ def _build_filter_params(request: HttpRequest) -> dict:
         "datasets_ids": datasets_ids,
         "basis_of_record_ids": basis_of_record_ids,
         "area_ids": area_ids,
+        "area_buffer_meters": area_buffer_meters,
         "initial_data_import_ids": initial_data_import_ids,
         "verified_filter": verified_filter,
     }
@@ -210,7 +216,12 @@ def observation_min_max_in_hex_grid_json(request: HttpRequest):
                         SELECT mpoly
                         FROM {_TBL_AREAS}
                         WHERE {_TBL_AREAS}.id IN {{{{ area_ids | inclause }}}}
-                    ) AS areas ON ST_Within(obs.location, areas.mpoly)
+                    ) AS areas ON
+                        {{% if area_buffer_meters and area_buffer_meters > 0 %}}
+                            ST_DWithin(obs.location::geography, areas.mpoly::geography, {{{{ area_buffer_meters }}}})
+                        {{% else %}}
+                            ST_Within(obs.location, areas.mpoly)
+                        {{% endif %}}
                     {{% endif %}}
                     {{% if status == 'unseen' %}}
                         INNER JOIN {_TBL_UNSEEN}

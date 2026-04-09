@@ -60,6 +60,17 @@ def extract_int_request(request: HttpRequest, param_name: str) -> int | None:
         return int(val)
 
 
+def extract_float_request(request: HttpRequest, param_name: str) -> float | None:
+    """Returns a float, or None if the parameter doesn't exist or is 'null'"""
+    val = _get_querydict_from_request(request).get(param_name, None)
+    if val == "" or val == "null" or val is None:
+        return None
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
+
+
 def extract_date_request(
     request: HttpRequest, param_name: str, date_format="%Y-%m-%d"
 ) -> datetime.date | None:
@@ -104,6 +115,7 @@ def filtered_observations_from_request(request: HttpRequest) -> QuerySet[Observa
         status_for_user,
         initial_data_import_ids,
         verified_filter,
+        area_buffer_meters,
     ) = filters_from_request(request)
 
     user = None
@@ -121,6 +133,7 @@ def filtered_observations_from_request(request: HttpRequest) -> QuerySet[Observa
         initial_data_import_ids=initial_data_import_ids,
         user=user,
         verified_filter=verified_filter,
+        area_buffer_meters=area_buffer_meters,
     )
 
 
@@ -136,6 +149,7 @@ def filters_from_request(
     str | None,
     list[int],
     str | None,
+    int,
 ]:
     species_ids = extract_int_array_request(request, "speciesIds[]")
     datasets_ids = extract_int_array_request(request, "datasetsIds[]")
@@ -148,6 +162,8 @@ def filters_from_request(
         request, "initialDataImportIds[]"
     )
     verified_filter = extract_str_request(request, "verifiedFilter")
+    area_buffer_km = extract_float_request(request, "areaBufferKm") or 0.0
+    area_buffer_meters = max(0, int(round(area_buffer_km * 1000)))
 
     return (
         species_ids,
@@ -159,6 +175,7 @@ def filters_from_request(
         status_for_user,
         initial_data_import_ids,
         verified_filter,
+        area_buffer_meters,
     )
 
 

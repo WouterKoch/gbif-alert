@@ -38,6 +38,7 @@ export interface DashboardFilters {
   startDate: string | null;
   endDate: string | null;
   areaIds: number[];
+  areaBufferKm: number;
   status: "seen" | "unseen" | undefined;
   initialDataImportIds: number[];
   verifiedFilter: "all" | "verified" | "unverified";

@@ -79,6 +79,19 @@
               </template>
           </Filter-Selector>
 
+          <div v-if="filters.areaIds.length > 0" class="mx-2 d-flex align-items-center">
+            <label class="me-1 text-nowrap">{{ $t('message.areaBufferKm') }}:</label>
+            <input
+                type="number"
+                min="0"
+                step="0.1"
+                class="form-control form-control-sm"
+                style="width: 6rem;"
+                :value="filters.areaBufferKm"
+                @input="changeAreaBufferKm(($event.target as HTMLInputElement).valueAsNumber)"
+            />
+          </div>
+
           <Filter-Selector
               v-if="showInitialDataImportFilter"
               class="mx-2"
@@ -178,7 +191,7 @@ export default defineComponent({
       availableAreas: [],
       availableDataImports: [],
 
-      filters: initialFilters,
+      filters: { areaBufferKm: 0, ...initialFilters } as DashboardFilters,
 
       debouncedUpdateDateFilters: undefined,
     };
@@ -241,6 +254,9 @@ export default defineComponent({
     },
     changeSelectedAreas: function (areasIds: number[]) {
       this.filters.areaIds = areasIds;
+    },
+    changeAreaBufferKm: function (value: number) {
+      this.filters.areaBufferKm = (Number.isFinite(value) && value > 0) ? value : 0;
     },
     changeSelectedInitialDataImport: function (dataImportsIds: number[]) {
       this.filters.initialDataImportIds = dataImportsIds;
