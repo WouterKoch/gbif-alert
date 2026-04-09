@@ -20,6 +20,33 @@ class NewCustomAreaForm(forms.Form):
     )
 
 
+class AdminAreaImportForm(forms.Form):
+    name = forms.CharField(
+        label="Area name",
+        max_length=255,
+        help_text="A short name to identify this area",
+    )
+    data_file = forms.FileField(
+        label="Data file",
+        help_text=(
+            "Supported formats: zipped Shapefile (.zip containing .shp/.dbf/.shx/.prj), "
+            "GeoPackage (.gpkg), GeoJSON (.geojson/.json). "
+            "Multiple polygon features will be merged into a single area."
+        ),
+    )
+    simplify_tolerance = forms.FloatField(
+        label="Simplification tolerance",
+        required=False,
+        initial=50.0,
+        min_value=0.0,
+        help_text=(
+            "Douglas-Peucker tolerance, in meters (project SRID is EPSG:3857). "
+            "Larger values produce coarser geometries with fewer vertices. "
+            "Set to 0 to disable simplification."
+        ),
+    )
+
+
 def _enabled_languages_as_tuple():
     """
     Return a tuple of tuples of the form (language_code, language_name) for all enabled languages

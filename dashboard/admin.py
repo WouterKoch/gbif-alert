@@ -1,9 +1,13 @@
+import os
+import tempfile
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.contrib.gis import admin
 from django.http import JsonResponse
-from django.urls import path
+from django.shortcuts import redirect, render
+from django.urls import path, reverse
 from import_export import resources  # type: ignore
 from import_export.admin import ImportExportModelAdmin  # type: ignore
 from modeltranslation.admin import TranslationAdmin  # type: ignore
@@ -137,6 +141,8 @@ class BasisOfRecordAdmin(admin.ModelAdmin):
 
 @admin.register(Area)
 class AreaAdmin(admin.OSMGeoAdmin):
+    change_list_template = "admin/dashboard/area/change_list.html"
+
     def get_queryset(self, request):
         return super().get_queryset(request).prefetch_related("tags")
 
@@ -144,6 +150,70 @@ class AreaAdmin(admin.OSMGeoAdmin):
         return ", ".join(o.name for o in obj.tags.all())
 
     list_display = ("name", "owner", "tag_list")
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "import-from-file/",
+                self.admin_site.admin_view(self.import_from_file_view),
+                name="dashboard_area_import_from_file",
+            ),
+        ]
+        return custom_urls + urls
+
+    def import_from_file_view(self, request):
+        from .area_import import area_file_to_multipolygon
+        from .forms import AdminAreaImportForm
+
+        if request.method == "POST":
+            form = AdminAreaImportForm(request.POST, request.FILES)
+            if form.is_valid():
+                uploaded = request.FILES["data_file"]
+                # GDAL needs a real file path; UploadedFile may live in memory.
+                suffix = os.path.splitext(uploaded.name)[1] or ""
+                tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+                try:
+                    for chunk in uploaded.chunks():
+                        tmp.write(chunk)
+                    tmp.close()
+                    tolerance = form.cleaned_data.get("simplify_tolerance") or 0.0
+                    try:
+                        mpoly = area_file_to_multipolygon(
+                            tmp.name, simplify_tolerance=tolerance
+                        )
+                    except Exception as exc:
+                        messages.error(request, f"Import failed: {exc}")
+                    else:
+                        area = Area.objects.create(
+                            name=form.cleaned_data["name"], mpoly=mpoly
+                        )
+                        messages.success(
+                            request,
+                            f"Area '{area.name}' imported "
+                            f"({sum(len(p.coords[0]) for p in mpoly)} vertices, "
+                            f"{len(mpoly)} polygon(s)).",
+                        )
+                        return redirect(
+                            reverse("admin:dashboard_area_changelist")
+                        )
+                finally:
+                    try:
+                        os.unlink(tmp.name)
+                    except OSError:
+                        pass
+        else:
+            form = AdminAreaImportForm()
+
+        context = {
+            **self.admin_site.each_context(request),
+            "form": form,
+            "opts": self.model._meta,
+            "title": "Import area from file",
+        }
+        return render(
+            request, "admin/dashboard/area/import_from_file.html", context
+        )
 
 
 # Beware: the following action is mostly for debugging purposes and will send an email if the usual criteria are not
