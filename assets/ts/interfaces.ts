@@ -38,7 +38,7 @@ export interface DashboardFilters {
   startDate: string | null;
   endDate: string | null;
   areaIds: number[];
-  areaBufferKm: number;
+  areaBufferKm: number[];  // parallel array: areaBufferKm[i] is the buffer for areaIds[i]
   status: "seen" | "unseen" | undefined;
   initialDataImportIds: number[];
   verifiedFilter: "all" | "verified" | "unverified";

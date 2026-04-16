@@ -77,20 +77,27 @@
                       </i18n-t>
                   </div>
               </template>
+              <template v-slot:modal-body-bottom>
+                  <div v-if="filters.areaIds.length > 0" class="mt-3">
+                      <label class="fw-bold mb-1">{{ $t('message.areaBufferKm') }}</label>
+                      <small class="text-muted d-block mb-2">{{ $t('message.areaBufferHelp') }}</small>
+                      <div v-for="(areaId, idx) in filters.areaIds" :key="areaId"
+                           class="d-flex align-items-center mb-1">
+                          <span class="me-2 text-nowrap" style="min-width: 10rem;">{{ areaNameById(areaId) }}</span>
+                          <input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              class="form-control form-control-sm"
+                              style="width: 7rem;"
+                              :value="filters.areaBufferKm[idx] || 0"
+                              @input="changeAreaBufferKm(idx, parseFloat($event.target.value))"
+                          />
+                          <span class="ms-1 small text-muted">km</span>
+                      </div>
+                  </div>
+              </template>
           </Filter-Selector>
-
-          <div v-if="filters.areaIds.length > 0" class="mx-2 d-flex align-items-center">
-            <label class="me-1 text-nowrap">{{ $t('message.areaBufferKm') }}:</label>
-            <input
-                type="number"
-                min="0"
-                step="0.1"
-                class="form-control form-control-sm"
-                style="width: 6rem;"
-                :value="filters.areaBufferKm"
-                @input="changeAreaBufferKm(($event.target as HTMLInputElement).valueAsNumber)"
-            />
-          </div>
 
           <Filter-Selector
               v-if="showInitialDataImportFilter"
@@ -191,7 +198,7 @@ export default defineComponent({
       availableAreas: [],
       availableDataImports: [],
 
-      filters: { areaBufferKm: 0, ...initialFilters } as DashboardFilters,
+      filters: initialFilters,
 
       debouncedUpdateDateFilters: undefined,
     };
@@ -253,10 +260,22 @@ export default defineComponent({
       this.filters.basisOfRecordIds = basisOfRecordIds;
     },
     changeSelectedAreas: function (areasIds: number[]) {
+      // Preserve existing buffer values for areas that remain selected
+      const oldBuffers: Record<number, number> = {};
+      this.filters.areaIds.forEach((id: number, i: number) => {
+        oldBuffers[id] = this.filters.areaBufferKm[i] || 0;
+      });
       this.filters.areaIds = areasIds;
+      this.filters.areaBufferKm = areasIds.map((id: number) => oldBuffers[id] || 0);
     },
-    changeAreaBufferKm: function (value: number) {
-      this.filters.areaBufferKm = (Number.isFinite(value) && value > 0) ? value : 0;
+    changeAreaBufferKm: function (idx: number, value: number) {
+      const arr = [...this.filters.areaBufferKm];
+      arr[idx] = (Number.isFinite(value) && value > 0) ? value : 0;
+      this.filters.areaBufferKm = arr;
+    },
+    areaNameById: function (areaId: number): string {
+      const area = this.availableAreas.find((a: AreaInformation) => a.id === areaId);
+      return area ? area.name : `Area #${areaId}`;
     },
     changeSelectedInitialDataImport: function (dataImportsIds: number[]) {
       this.filters.initialDataImportIds = dataImportsIds;

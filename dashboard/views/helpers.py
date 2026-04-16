@@ -115,7 +115,7 @@ def filtered_observations_from_request(request: HttpRequest) -> QuerySet[Observa
         status_for_user,
         initial_data_import_ids,
         verified_filter,
-        area_buffer_meters,
+        area_buffers,
     ) = filters_from_request(request)
 
     user = None
@@ -133,7 +133,7 @@ def filtered_observations_from_request(request: HttpRequest) -> QuerySet[Observa
         initial_data_import_ids=initial_data_import_ids,
         user=user,
         verified_filter=verified_filter,
-        area_buffer_meters=area_buffer_meters,
+        area_buffers=area_buffers,
     )
 
 
@@ -149,7 +149,7 @@ def filters_from_request(
     str | None,
     list[int],
     str | None,
-    int,
+    dict[int, int],
 ]:
     species_ids = extract_int_array_request(request, "speciesIds[]")
     datasets_ids = extract_int_array_request(request, "datasetsIds[]")
@@ -162,8 +162,18 @@ def filters_from_request(
         request, "initialDataImportIds[]"
     )
     verified_filter = extract_str_request(request, "verifiedFilter")
-    area_buffer_km = extract_float_request(request, "areaBufferKm") or 0.0
-    area_buffer_meters = max(0, int(round(area_buffer_km * 1000)))
+    # Per-area buffers: sent as parallel arrays areaBufferKm[]=5&areaBufferKm[]=0
+    # matching the order of areaIds[].
+    raw_buffers = extract_array_request(request, "areaBufferKm[]")
+    area_buffers: dict[int, int] = {}
+    for i, aid in enumerate(areas_ids):
+        km = 0.0
+        if i < len(raw_buffers):
+            try:
+                km = float(raw_buffers[i])
+            except (TypeError, ValueError):
+                km = 0.0
+        area_buffers[aid] = max(0, int(round(km * 1000)))
 
     return (
         species_ids,
@@ -175,7 +185,7 @@ def filters_from_request(
         status_for_user,
         initial_data_import_ids,
         verified_filter,
-        area_buffer_meters,
+        area_buffers,
     )
 
 

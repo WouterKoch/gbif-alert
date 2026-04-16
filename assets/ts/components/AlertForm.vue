@@ -52,11 +52,17 @@
                     {label: $t('message.name'), dataIndex: 0}
                   ]" v-model="alertData.areaIds"></Selector>
 
-        <div class="mt-2 d-flex align-items-center" v-if="alertData.areaIds.length > 0">
-          <label class="me-2">{{ $t('message.areaBufferKm') }}:</label>
-          <input type="number" min="0" step="0.1" class="form-control form-control-sm" style="width: 8rem;"
-                 v-model.number="alertData.areaBufferKm">
-          <small class="text-muted ms-2">{{ $t('message.areaBufferHelp') }}</small>
+        <div v-if="alertData.areaIds.length > 0" class="mt-2">
+          <label class="fw-bold mb-1">{{ $t('message.areaBufferKm') }}</label>
+          <small class="text-muted d-block mb-2">{{ $t('message.areaBufferHelp') }}</small>
+          <div v-for="(areaId, idx) in alertData.areaIds" :key="areaId"
+               class="d-flex align-items-center mb-1">
+            <span class="me-2" style="min-width: 10rem;">{{ areaNameById(areaId) }}</span>
+            <input type="number" min="0" step="0.1" class="form-control form-control-sm" style="width: 7rem;"
+                   :value="alertData.areaBufferKm[idx] || 0"
+                   @input="setAreaBuffer(idx, parseFloat($event.target.value))">
+            <span class="ms-1 small text-muted">km</span>
+          </div>
         </div>
       </div>
     </div>
@@ -127,7 +133,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, ref} from "vue";
+import {computed, onMounted, ref, watch} from "vue";
 import axios from "axios";
 
 import {AreaInformation, BasisOfRecordInformation, DataRow, DatasetInformation, FrontEndConfig, SpeciesInformation} from "../interfaces";
@@ -183,7 +189,7 @@ const alertData = ref({
   datasetIds: [],
   basisOfRecordIds: [],
   areaIds: [] as number[],
-  areaBufferKm: 0,
+  areaBufferKm: [] as number[],
   emailNotificationsFrequency: 'W',
   verifiedFilter: 'all'
 });
@@ -280,6 +286,26 @@ const availableSpeciesAsDataRows = computed(
       return prepareSpeciesData(availableSpecies.value);
     },
 );
+
+const areaNameById = function (areaId: number): string {
+  const area = availableAreas.value.find((a: AreaInformation) => a.id === areaId);
+  return area ? area.name : `Area #${areaId}`;
+}
+
+const setAreaBuffer = function (idx: number, value: number) {
+  const arr = [...alertData.value.areaBufferKm];
+  arr[idx] = (Number.isFinite(value) && value > 0) ? value : 0;
+  alertData.value.areaBufferKm = arr;
+}
+
+// Keep buffer array in sync when areas are added/removed via the Selector
+watch(() => alertData.value.areaIds, (newIds, oldIds) => {
+  const oldBuffers: Record<number, number> = {};
+  (oldIds || []).forEach((id: number, i: number) => {
+    oldBuffers[id] = alertData.value.areaBufferKm[i] || 0;
+  });
+  alertData.value.areaBufferKm = newIds.map((id: number) => oldBuffers[id] || 0);
+}, {deep: true});
 
 onMounted(() => {
   // Populate initial values if editing an existing alert

@@ -69,8 +69,56 @@ class ObservationAdmin(admin.OSMGeoAdmin):
 
 
 class SpeciesResource(resources.ModelResource):
+    """Import/export resource for Species.
+
+    Accepts Excel files with camelCase column names (scientificName,
+    gbifTaxonKey, vernacularNameEn/Fr/Nl, tags) as well as the default
+    snake_case model field names.
+    Tags are imported from a comma-separated string in a ``tags`` column.
+    """
+
+    # Skip columns present in the file but not needed for import
+    file_id = resources.Field(column_name="id", attribute=None)
+    file_vernacular_name = resources.Field(
+        column_name="vernacularName", attribute=None
+    )
+    file_gbif_taxon_key_snake = resources.Field(
+        column_name="gbif_taxon_key", attribute=None
+    )
+    tags_field = resources.Field(column_name="tags", attribute=None)
+
+    # Actual field mappings
+    name = resources.Field(
+        column_name="scientificName", attribute="name"
+    )
+    gbif_taxon_key = resources.Field(
+        column_name="gbifTaxonKey", attribute="gbif_taxon_key"
+    )
+    vernacular_name_en = resources.Field(
+        column_name="vernacularNameEn", attribute="vernacular_name_en"
+    )
+    vernacular_name_fr = resources.Field(
+        column_name="vernacularNameFr", attribute="vernacular_name_fr"
+    )
+    vernacular_name_nl = resources.Field(
+        column_name="vernacularNameNl", attribute="vernacular_name_nl"
+    )
+
     class Meta:
         model = Species
+        import_id_fields = ("gbif_taxon_key",)
+        exclude = ("id",)
+
+    def before_import_row(self, row, **kwargs):
+        self._pending_tags = row.get("tags", "")
+
+    def after_save_instance(self, instance, using_transactions, dry_run):
+        if dry_run:
+            return
+        tags_str = getattr(self, "_pending_tags", "")
+        if tags_str:
+            tag_list = [t.strip() for t in str(tags_str).split(",") if t.strip()]
+            instance.tags.set(*tag_list, clear=True)
 
 
 @admin.register(Species)
@@ -159,50 +207,68 @@ class AreaAdmin(admin.OSMGeoAdmin):
                 self.admin_site.admin_view(self.import_from_file_view),
                 name="dashboard_area_import_from_file",
             ),
+            path(
+                "import-from-file/progress/",
+                self.admin_site.admin_view(self.area_import_progress_view),
+                name="dashboard_area_import_progress",
+            ),
         ]
         return custom_urls + urls
 
     def import_from_file_view(self, request):
-        from .area_import import area_file_to_multipolygon
+        from .area_import import clear_area_import_progress, get_area_import_progress
         from .forms import AdminAreaImportForm
 
         if request.method == "POST":
             form = AdminAreaImportForm(request.POST, request.FILES)
             if form.is_valid():
-                uploaded = request.FILES["data_file"]
-                # GDAL needs a real file path; UploadedFile may live in memory.
-                suffix = os.path.splitext(uploaded.name)[1] or ""
-                tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
-                try:
+                # Check if an import is already running
+                progress = get_area_import_progress()
+                if progress and progress["status"] == "running":
+                    messages.warning(
+                        request, "An area import is already in progress."
+                    )
+                else:
+                    uploaded = request.FILES["data_file"]
+                    suffix = os.path.splitext(uploaded.name)[1] or ""
+                    # Write to a directory shared between the web and
+                    # rqworker containers (they have separate filesystems,
+                    # so plain /tmp won't work).
+                    shared_dir = os.path.join(
+                        settings.BASE_DIR, "shared_tmp"
+                    )
+                    os.makedirs(shared_dir, exist_ok=True)
+                    tmp = tempfile.NamedTemporaryFile(
+                        suffix=suffix, dir=shared_dir, delete=False
+                    )
                     for chunk in uploaded.chunks():
                         tmp.write(chunk)
                     tmp.close()
-                    tolerance = form.cleaned_data.get("simplify_tolerance") or 0.0
-                    try:
-                        mpoly = area_file_to_multipolygon(
-                            tmp.name, simplify_tolerance=tolerance
-                        )
-                    except Exception as exc:
-                        messages.error(request, f"Import failed: {exc}")
-                    else:
-                        area = Area.objects.create(
-                            name=form.cleaned_data["name"], mpoly=mpoly
-                        )
-                        messages.success(
-                            request,
-                            f"Area '{area.name}' imported "
-                            f"({sum(len(p.coords[0]) for p in mpoly)} vertices, "
-                            f"{len(mpoly)} polygon(s)).",
-                        )
-                        return redirect(
-                            reverse("admin:dashboard_area_changelist")
-                        )
-                finally:
-                    try:
-                        os.unlink(tmp.name)
-                    except OSError:
-                        pass
+
+                    tolerance = (
+                        form.cleaned_data.get("simplify_tolerance") or 0.0
+                    )
+                    clear_area_import_progress()
+
+                    from .views.jobs import run_area_import
+
+                    run_area_import.delay(
+                        file_path=tmp.name,
+                        area_name=form.cleaned_data["name"],
+                        simplify_tolerance=tolerance,
+                    )
+                    messages.info(
+                        request,
+                        "Area import has been queued. "
+                        "Progress is shown below.",
+                    )
+                # Stay on the same page so the user sees the progress bar
         else:
+            # Fresh page load — clear any leftover completed/failed status
+            # so the user starts with a clean slate.
+            progress = get_area_import_progress()
+            if progress and progress["status"] in ("completed", "failed"):
+                clear_area_import_progress()
             form = AdminAreaImportForm()
 
         context = {
@@ -214,6 +280,14 @@ class AreaAdmin(admin.OSMGeoAdmin):
         return render(
             request, "admin/dashboard/area/import_from_file.html", context
         )
+
+    def area_import_progress_view(self, request):
+        from .area_import import get_area_import_progress
+
+        progress = get_area_import_progress()
+        if progress is None:
+            return JsonResponse({"status": "idle", "message": ""})
+        return JsonResponse(progress)
 
 
 # Beware: the following action is mostly for debugging purposes and will send an email if the usual criteria are not

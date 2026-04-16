@@ -1,4 +1,5 @@
 """Views that return HTML pages"""
+import json
 import tempfile
 
 from django.contrib import messages
@@ -37,15 +38,28 @@ def index_page(request: HttpRequest) -> HttpResponse:
         #  Common case of malformed input by bots, see https://github.com/riparias/gbif-alert/issues/106
         raise BadRequest("Invalid filter parameters.")
 
+    default_filters = {
+        "speciesIds": [],
+        "datasetsIds": [],
+        "basisOfRecordIds": [],
+        "startDate": None,
+        "endDate": None,
+        "areaIds": [],
+        "areaBufferKm": [],
+        "status": "unseen",
+        "initialDataImportIds": [],
+        "verifiedFilter": "all",
+    }
+
     if filters_from_url is not None:
-        filters_for_template = filters_from_url
+        filters_for_template = {**default_filters, **filters_from_url}
     else:
-        filters_for_template = {"status": "unseen"}
+        filters_for_template = default_filters
 
     return render(
         request,
         "dashboard/index.html",
-        {"initialFilters": filters_for_template},
+        {"initialFilters": json.dumps(filters_for_template)},
     )
 
 

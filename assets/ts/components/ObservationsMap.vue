@@ -1,6 +1,13 @@
 <template>
-  <div ref="map-root" :style="{ width: '100%', height: height + 'px' }"></div>
-  <div ref="popup-root" title="Observations at this location"></div>
+  <div style="position: relative;">
+    <div ref="map-root" :style="{ width: '100%', height: height + 'px' }"></div>
+    <div v-if="loading" class="map-loading-overlay" :style="{ height: height + 'px' }">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+    <div ref="popup-root" title="Observations at this location"></div>
+  </div>
 </template>
 
 <script lang="ts">
@@ -39,6 +46,8 @@ interface ObservationMapData {
   availableBaseLayers: BaseLayerEntry[];
   areasOverlayCollection: Collection<VectorLayer>;
   popover: Popover | null;
+  loading: boolean;
+  tilesLoading: number;
 }
 
 export default defineComponent({
@@ -87,6 +96,8 @@ export default defineComponent({
       availableBaseLayers: markRaw(baseLayers),
       areasOverlayCollection: markRaw(new Collection()),
       popover: null,
+      loading: false,
+      tilesLoading: 0,
     } as ObservationMapData;
   },
   watch: {
@@ -228,7 +239,23 @@ export default defineComponent({
         this.HexMaxOccCount = response.data.max;
       });
     },
+    trackTileLoading: function (source: VectorTileSource): void {
+      source.on("tileloadstart", () => {
+        this.tilesLoading++;
+        this.loading = true;
+      });
+      const onDone = () => {
+        this.tilesLoading = Math.max(0, this.tilesLoading - 1);
+        if (this.tilesLoading === 0) {
+          this.loading = false;
+        }
+      };
+      source.on("tileloadend", onDone);
+      source.on("tileloaderror", onDone);
+    },
     replaceDataLayers: function (): void {
+      this.tilesLoading = 0;
+      this.loading = true;
       this.replaceAggregatedDataLayer();
       this.replaceSimpleDataLayer();
     },
@@ -252,14 +279,16 @@ export default defineComponent({
       }
     },
     createSimpleDataLayer: function (): VectorTileLayer {
+      const source = new VectorTileSource({
+        format: new MVT(),
+        url:
+            this.apiEndpoints.tileServerUrlTemplate +
+            "?" +
+            filtersToQuerystring(this.filters),
+      });
+      this.trackTileLoading(source);
       return new VectorTileLayer({
-        source: new VectorTileSource({
-          format: new MVT(),
-          url:
-              this.apiEndpoints.tileServerUrlTemplate +
-              "?" +
-              filtersToQuerystring(this.filters),
-        }),
+        source: source,
         style: new Style({
           image: new Circle({
             radius: 7,
@@ -271,14 +300,16 @@ export default defineComponent({
       });
     },
     createAggregatedDataLayer: function (): VectorTileLayer {
+      const source = new VectorTileSource({
+        format: new MVT(),
+        url:
+            this.apiEndpoints.tileServerAggregatedUrlTemplate +
+            "?" +
+            filtersToQuerystring(this.filters),
+      });
+      this.trackTileLoading(source);
       return new VectorTileLayer({
-        source: new VectorTileSource({
-          format: new MVT(),
-          url:
-              this.apiEndpoints.tileServerAggregatedUrlTemplate +
-              "?" +
-              filtersToQuerystring(this.filters),
-        }),
+        source: source,
         style: this.aggregatedDataLayerStyleFunction,
         opacity: this.dataLayerOpacity,
         maxZoom: this.layerSwitchZoomLevel,
@@ -352,3 +383,18 @@ export default defineComponent({
   },
 });
 </script>
+
+<style>
+.map-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.45);
+  z-index: 999;
+  pointer-events: none;
+}
+</style>

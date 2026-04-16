@@ -17,7 +17,14 @@
     features will be merged (unioned) into a single area. Large or highly
     detailed geometries can be simplified using the tolerance below.
   </p>
-  <form method="post" enctype="multipart/form-data">
+
+  <div id="import-status" style="display:none; margin-bottom: 20px; padding: 12px 16px; border: 1px solid var(--border-color, #ccc); border-radius: 4px; background: var(--darkened-bg, #f8f8f8); color: var(--body-fg, #333);">
+    <strong>Import status:</strong>
+    <span id="import-message">&mdash;</span>
+    <span id="import-elapsed" style="margin-left: 12px; opacity: 0.7;"></span>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" id="import-form">
     {% csrf_token %}
     <fieldset class="module aligned">
       {% for field in form %}
@@ -32,8 +39,108 @@
       {% endfor %}
     </fieldset>
     <div class="submit-row">
-      <input type="submit" value="Import area" class="default">
+      <input type="submit" value="Import area" class="default" id="submit-btn">
       <a href="{% url 'admin:dashboard_area_changelist' %}" class="button cancel-link">Cancel</a>
     </div>
   </form>
+
+  <script>
+    const progressUrl = "{% url 'admin:dashboard_area_import_progress' %}";
+    const changelistUrl = "{% url 'admin:dashboard_area_changelist' %}";
+    let pollInterval = null;
+    let importStartTime = null;
+    let triggerTimestamp = null;
+
+    function getCookie(name) {
+      const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+      return v ? v.pop() : '';
+    }
+
+    function updateElapsed() {
+      if (!importStartTime) return;
+      const el = document.getElementById('import-elapsed');
+      const seconds = Math.floor((Date.now() - importStartTime) / 1000);
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      el.textContent = '(' + m + 'm ' + s.toString().padStart(2, '0') + 's)';
+    }
+
+    function showStatus(data) {
+      const statusDiv = document.getElementById('import-status');
+      const msgEl = document.getElementById('import-message');
+      const btn = document.getElementById('submit-btn');
+
+      statusDiv.style.display = 'block';
+      msgEl.textContent = data.message || data.status;
+
+      statusDiv.style.borderColor = 'var(--border-color, #ccc)';
+      statusDiv.style.background = 'var(--darkened-bg, #f8f8f8)';
+
+      if (data.status === 'completed') {
+        statusDiv.style.borderColor = '#4a4';
+        statusDiv.style.background = 'rgba(68, 170, 68, 0.15)';
+        btn.disabled = false;
+        // Redirect to changelist after a short delay so the user sees the
+        // success message
+        setTimeout(function () { window.location.href = changelistUrl; }, 2000);
+      } else if (data.status === 'failed') {
+        statusDiv.style.borderColor = '#c44';
+        statusDiv.style.background = 'rgba(204, 68, 68, 0.15)';
+        btn.disabled = false;
+      } else {
+        btn.disabled = true;
+      }
+    }
+
+    function isStaleProgress(data) {
+      if (triggerTimestamp && data.timestamp) {
+        return data.timestamp < triggerTimestamp;
+      }
+      return false;
+    }
+
+    function startPolling() {
+      const statusDiv = document.getElementById('import-status');
+      statusDiv.style.display = 'block';
+      document.getElementById('import-message').textContent = 'Waiting for worker to pick up the job\u2026';
+
+      pollInterval = setInterval(function () {
+        updateElapsed();
+        fetch(progressUrl)
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.status === 'idle' || isStaleProgress(data)) return;
+            showStatus(data);
+            if (data.status === 'completed' || data.status === 'failed') {
+              clearInterval(pollInterval);
+              pollInterval = null;
+            }
+          })
+          .catch(function () {});
+      }, 1000);
+    }
+
+    // Intercept form submission: let the browser POST normally (which
+    // enqueues the job) and then start polling.
+    document.getElementById('import-form').addEventListener('submit', function () {
+      importStartTime = Date.now();
+      triggerTimestamp = Date.now() / 1000;
+      // Delay polling start slightly so the POST has time to arrive
+      setTimeout(startPolling, 500);
+    });
+
+    // On page load, check if a job is actively running (e.g. user refreshed
+    // mid-import).  Completed/failed states are cleared by the server on GET,
+    // so we only need to handle the "running" case here.
+    fetch(progressUrl)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.status || data.status === 'idle') return;
+        if (data.status === 'completed' || data.status === 'failed') return;
+        // Actively running — resume polling
+        importStartTime = data.timestamp ? data.timestamp * 1000 : Date.now();
+        triggerTimestamp = 0;
+        startPolling();
+      });
+  </script>
 {% endblock %}

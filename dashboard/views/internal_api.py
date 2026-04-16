@@ -35,6 +35,7 @@ from dashboard.models import (
     BasisOfRecord,
     Area,
     Alert,
+    AlertArea,
     DataImport,
     User,
 )
@@ -152,13 +153,13 @@ def _create_or_update_alert(
     alert_name: str,
     species_ids: list[int],
     area_ids: list[int],
+    area_buffer_km_list: list[float],
     dataset_ids: list[int],
     basis_of_record_ids: list[int],
     email_notifications_frequency: str,
     verified_filter: str,
     user: User,
     alert_id: int | None = None,
-    area_buffer_km: float = 0.0,
 ) -> JsonResponse:
     """Create or update an alert, depending on the alert_id value"""
     if alert_id:
@@ -169,10 +170,6 @@ def _create_or_update_alert(
     alert.name = alert_name
     alert.email_notifications_frequency = email_notifications_frequency
     alert.verified_filter = verified_filter
-    try:
-        alert.area_buffer_meters = max(0, int(round(float(area_buffer_km) * 1000)))
-    except (TypeError, ValueError):
-        alert.area_buffer_meters = 0
 
     errors = {}
 
@@ -190,8 +187,16 @@ def _create_or_update_alert(
         # Finally add the m2m relations
         alert.species.clear()
         alert.species.add(*species_ids)
-        alert.areas.clear()
-        alert.areas.add(*area_ids)
+        AlertArea.objects.filter(alert=alert).delete()
+        for i, area_id in enumerate(area_ids):
+            buf_km = area_buffer_km_list[i] if i < len(area_buffer_km_list) else 0
+            try:
+                buf_m = max(0, int(round(float(buf_km) * 1000)))
+            except (TypeError, ValueError):
+                buf_m = 0
+            AlertArea.objects.create(
+                alert=alert, area_id=area_id, buffer_meters=buf_m
+            )
         alert.datasets.clear()
         alert.datasets.add(*dataset_ids)
         alert.basis_of_record_filters.clear()
@@ -218,11 +223,11 @@ def alert(
             alert_name=alert_data["name"],
             species_ids=alert_data["speciesIds"],
             area_ids=alert_data["areaIds"],
+            area_buffer_km_list=alert_data.get("areaBufferKm", []),
             dataset_ids=alert_data["datasetIds"],
             basis_of_record_ids=alert_data.get("basisOfRecordIds", []),
             email_notifications_frequency=alert_data["emailNotificationsFrequency"],
             verified_filter=alert_data.get("verifiedFilter", "all"),
-            area_buffer_km=alert_data.get("areaBufferKm", 0) or 0,
             user=request.user,
             alert_id=alert_id,
         )

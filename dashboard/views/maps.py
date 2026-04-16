@@ -37,8 +37,8 @@ WHERE_CLAUSE = readable_string(
             AND obs.date <= TO_DATE({{{{ end_date }}}}, 'YYYY-MM-DD')
         {{% endif %}}
         {{% if area_ids %}}
-            {{% if area_buffer_meters and area_buffer_meters > 0 %}}
-                AND ST_DWithin(obs.location::geography, areas.mpoly::geography, {{{{ area_buffer_meters }}}})
+            {{% if precomputed_area_wkt %}}
+                AND ST_Within(obs.location, ST_GeomFromText({{{{ precomputed_area_wkt }}}}, {{{{ precomputed_area_srid }}}}))
             {{% else %}}
                 AND ST_Within(obs.location, areas.mpoly)
             {{% endif %}}
@@ -79,7 +79,7 @@ JINJASQL_FRAGMENT_FILTER_OBSERVATIONS = f"""
         ON obs.id = {_TBL_UNSEEN}.observation_id
     {{% endif %}}
 
-    {{% if area_ids %}}
+    {{% if area_ids and not precomputed_area_wkt %}}
     , (SELECT mpoly FROM {_TBL_AREAS} WHERE {_TBL_AREAS}.id IN {{{{ area_ids | inclause }}}}) AS areas
     {{% endif %}}
     WHERE (
@@ -115,7 +115,7 @@ def _build_filter_params(request: HttpRequest) -> dict:
         status_for_user,
         initial_data_import_ids,
         verified_filter,
-        area_buffer_meters,
+        area_buffers,
     ) = filters_from_request(request)
 
     params: dict = {
@@ -123,10 +123,22 @@ def _build_filter_params(request: HttpRequest) -> dict:
         "datasets_ids": datasets_ids,
         "basis_of_record_ids": basis_of_record_ids,
         "area_ids": area_ids,
-        "area_buffer_meters": area_buffer_meters,
+        "area_buffers": area_buffers,
         "initial_data_import_ids": initial_data_import_ids,
         "verified_filter": verified_filter,
     }
+
+    # When any area has a buffer, pre-compute the combined (buffered) area
+    # geometry and pass it as a WKT parameter.  The SQL template will use
+    # ST_Within against this pre-computed geometry instead of joining the
+    # area table directly.
+    if area_ids and area_buffers and any(v > 0 for v in area_buffers.values()):
+        from dashboard.models import compute_buffered_area_union
+
+        combined = compute_buffered_area_union(area_buffers)
+        if combined:
+            params["precomputed_area_wkt"] = combined.wkt
+            params["precomputed_area_srid"] = combined.srid
 
     if status_for_user and request.user.is_authenticated:
         params["status"] = status_for_user
@@ -211,17 +223,12 @@ def observation_min_max_in_hex_grid_json(request: HttpRequest):
                 FROM (SELECT * FROM hexa_{hex_size}) AS obs
                     LEFT JOIN dashboard_species as species ON obs.species_id = species.id
 
-                    {{% if area_ids %}}
+                    {{% if area_ids and not precomputed_area_wkt %}}
                     LEFT JOIN (
                         SELECT mpoly
                         FROM {_TBL_AREAS}
                         WHERE {_TBL_AREAS}.id IN {{{{ area_ids | inclause }}}}
-                    ) AS areas ON
-                        {{% if area_buffer_meters and area_buffer_meters > 0 %}}
-                            ST_DWithin(obs.location::geography, areas.mpoly::geography, {{{{ area_buffer_meters }}}})
-                        {{% else %}}
-                            ST_Within(obs.location, areas.mpoly)
-                        {{% endif %}}
+                    ) AS areas ON ST_Within(obs.location, areas.mpoly)
                     {{% endif %}}
                     {{% if status == 'unseen' %}}
                         INNER JOIN {_TBL_UNSEEN}

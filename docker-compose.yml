@@ -39,6 +39,7 @@ services:
         condition: service_started
     volumes:
       - static_volume:/app/staticfiles
+      - shared_tmp:/app/shared_tmp
   rqworker:
     build:
       context: .
@@ -50,7 +51,9 @@ services:
         condition: service_started
     volumes:
       - static_volume:/app/staticfiles
+      - shared_tmp:/app/shared_tmp
 
 volumes:
   postgres_data:
   static_volume:
+  shared_tmp:

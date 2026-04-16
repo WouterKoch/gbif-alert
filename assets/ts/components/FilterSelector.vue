@@ -15,6 +15,10 @@
                          :modal-title="modalTitle"
                          @clicked-close="modalActive = false">
 
+    <template #body-top>
+      <slot name="modal-body-top"></slot>
+    </template>
+
     <Selector
         :available-entries="entries"
         v-model="selectedEntriesIds"
@@ -23,6 +27,8 @@
         :initial-sort-direction="selectorInitialSortDirection"
     >
     </Selector>
+
+    <slot name="modal-body-bottom"></slot>
   </Filter-Selector-Modal>
 
 </template>

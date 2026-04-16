@@ -372,7 +372,7 @@ class ObservationManager(models.Manager["Observation"]):
         initial_data_import_ids: list[int],
         user: User | None,  # mandatory if status_for_user is set
         verified_filter: str | None = None,
-        area_buffer_meters: int = 0,
+        area_buffers: dict[int, int] | None = None,
     ) -> QuerySet["Observation"]:
         # !! IMPORTANT !! Make sure the observation filtering here is equivalent to what's done in
         # views.maps.JINJASQL_FRAGMENT_FILTER_OBSERVATIONS. Otherwise, observations returned on the map and on other
@@ -395,28 +395,22 @@ class ObservationManager(models.Manager["Observation"]):
         if end_date:
             qs = qs.filter(date__lte=end_date)
         if areas_ids:
-            combined_areas = Area.objects.filter(pk__in=areas_ids).aggregate(
-                area=AggregateUnion("mpoly")
-            )["area"]
-            if area_buffer_meters and area_buffer_meters > 0:
-                # Include observations within `area_buffer_meters` of the
-                # combined area boundary, in addition to those strictly inside.
-                # We measure the distance on the WGS84 ellipsoid (true meters
-                # everywhere on Earth) by casting both geometries to
-                # ``geography`` — EPSG:3857 distances would otherwise be
-                # inflated by 1/cos(latitude), which matters at high latitudes
-                # (≈2× at 60°N, ≈3× at 70°N).
-                obs_table = self.model._meta.db_table
-                qs = qs.extra(
-                    where=[
-                        f"ST_DWithin("
-                        f"{obs_table}.location::geography, "
-                        f"ST_GeomFromText(%s, %s)::geography, "
-                        f"%s)"
-                    ],
-                    params=[combined_areas.wkt, combined_areas.srid, area_buffer_meters],
-                )
+            # Build a {area_id: buffer_meters} dict, defaulting to 0
+            buffers = area_buffers or {}
+            full_buffers = {aid: buffers.get(aid, 0) for aid in areas_ids}
+            has_any_buffer = any(v > 0 for v in full_buffers.values())
+
+            if has_any_buffer:
+                # Pre-compute a single geometry that is the union of all
+                # areas, each individually buffered on the WGS-84 ellipsoid
+                # for accurate metric distances at any latitude.
+                combined = compute_buffered_area_union(full_buffers)
+                if combined:
+                    qs = qs.filter(location__within=combined)
             else:
+                combined_areas = Area.objects.filter(pk__in=areas_ids).aggregate(
+                    area=AggregateUnion("mpoly")
+                )["area"]
                 qs = qs.filter(location__within=combined_areas)
         if initial_data_import_ids:
             qs = qs.filter(initial_data_import_id__in=initial_data_import_ids)
@@ -946,6 +940,75 @@ class ObservationUnseen(models.Model):
         ]
 
 
+def compute_buffered_area_union(
+    area_buffers: dict[int, int],
+) -> "GEOSGeometry | None":
+    """Given ``{area_id: buffer_meters}``, return the union of all areas
+    (each optionally buffered) as a single GEOSGeometry.
+
+    Buffering is done on the WGS-84 ellipsoid (``geography`` cast) for
+    accurate metric distances at any latitude, then cast back to the
+    project SRID (EPSG:3857).  The result is simplified to keep the vertex
+    count manageable, and cached in Redis for 5 minutes so concurrent
+    requests (tiles, counters, etc.) don't each re-compute it.
+
+    Returns ``None`` when *area_buffers* is empty.
+    """
+    if not area_buffers:
+        return None
+
+    import hashlib
+    import json
+
+    import django_rq  # type: ignore
+    from django.contrib.gis.geos import GEOSGeometry as _G
+    from django.db import connection
+
+    # ---- cache lookup ----
+    key_data = json.dumps(sorted(area_buffers.items()), separators=(",", ":"))
+    cache_key = (
+        f"gbif_alert:buffered_union:"
+        f"{hashlib.md5(key_data.encode()).hexdigest()}"
+    )
+    redis_conn = django_rq.get_connection()
+    cached = redis_conn.get(cache_key)
+    if cached:
+        return _G(memoryview(cached), srid=DATA_SRID)
+
+    # ---- compute ----
+    values = list(area_buffers.items())
+    placeholders = ", ".join(["(%s, %s)"] * len(values))
+    params: list = []
+    for area_id, buf in values:
+        params.extend([area_id, buf])
+
+    # Buffer on geography for accurate metric distances, then simplify to
+    # keep the resulting geometry lightweight.  The simplification tolerance
+    # is 1 % of the buffer distance (min 50 m) — invisible at map scale but
+    # prevents million-vertex polygons from crippling downstream ST_Within.
+    sql = (
+        f"SELECT ST_Simplify(ST_Union("
+        f"  CASE WHEN buf.buffer_meters > 0 "
+        f"  THEN ST_Transform("
+        f"    ST_Buffer(ST_Transform(a.mpoly, 4326)::geography, buf.buffer_meters)::geometry"
+        f"  , {DATA_SRID}) "
+        f"  ELSE a.mpoly END"
+        f"), GREATEST(50, 0.01 * MAX(buf.buffer_meters)))"
+        f" FROM (VALUES {placeholders}) AS buf(area_id, buffer_meters) "
+        f"JOIN dashboard_area a ON a.id = buf.area_id"
+    )
+
+    with connection.cursor() as cursor:
+        cursor.execute(sql, params)
+        row = cursor.fetchone()
+        if row and row[0]:
+            result = _G(row[0], srid=DATA_SRID)
+            # cache for 5 minutes
+            redis_conn.setex(cache_key, 300, bytes(result.ewkb))
+            return result
+    return None
+
+
 class Alert(models.Model):
     """The per-user configured alerts
 
@@ -1018,6 +1081,7 @@ class Alert(models.Model):
     areas = models.ManyToManyField(
         Area,
         blank=True,
+        through="AlertArea",
         verbose_name=_("areas"),
         help_text=_(
             "Optional (no selection = notify me for all data in the system). To select multiple items, press and hold the "
@@ -1036,15 +1100,6 @@ class Alert(models.Model):
         max_length=10,
         choices=VERIFIED_FILTER_CHOICES,
         default=VERIFIED_FILTER_ALL,
-    )
-
-    area_buffer_meters = models.PositiveIntegerField(
-        default=0,
-        verbose_name=_("area buffer (meters)"),
-        help_text=_(
-            "Also include observations within this distance (in meters) from "
-            "the selected areas. 0 = strict containment."
-        ),
     )
 
     last_email_sent_on = models.DateTimeField(blank=True, null=True, default=None)
@@ -1088,8 +1143,8 @@ class Alert(models.Model):
             "speciesIds": [s.pk for s in self.species.all()],
             "datasetsIds": [d.pk for d in self.datasets.all()],
             "basisOfRecordIds": [b.pk for b in self.basis_of_record_filters.all()],
-            "areaIds": [a.pk for a in self.areas.all()],
-            "areaBufferKm": self.area_buffer_meters / 1000.0,
+            "areaIds": [aa.area_id for aa in self.alertarea_set.all()],
+            "areaBufferKm": [aa.buffer_meters / 1000.0 for aa in self.alertarea_set.all()],
             "startDate": None,
             "endDate": None,
             "status": "unseen",
@@ -1097,15 +1152,20 @@ class Alert(models.Model):
         }
 
     @property
+    def _area_buffers(self) -> dict[int, int]:
+        return {aa.area_id: aa.buffer_meters for aa in self.alertarea_set.all()}
+
+    @property
     def as_dict(self) -> dict[str, Any]:
+        alert_areas = list(self.alertarea_set.all())
         return {
             "id": self.pk,
             "name": self.name,
             "speciesIds": [s.pk for s in self.species.all()],
             "datasetIds": [d.pk for d in self.datasets.all()],
             "basisOfRecordIds": [b.pk for b in self.basis_of_record_filters.all()],
-            "areaIds": [a.pk for a in self.areas.all()],
-            "areaBufferKm": self.area_buffer_meters / 1000.0,
+            "areaIds": [aa.area_id for aa in alert_areas],
+            "areaBufferKm": [aa.buffer_meters / 1000.0 for aa in alert_areas],
             "emailNotificationsFrequency": self.email_notifications_frequency,
             "verifiedFilter": self.verified_filter,
         }
@@ -1113,34 +1173,36 @@ class Alert(models.Model):
     def observations(self) -> QuerySet[Observation]:
         """Return all observations matching this alert"""
         # TODO: test this
+        area_buffers = self._area_buffers
         return Observation.objects.filtered_from_my_params(
             species_ids=[s.pk for s in self.species.all()],
             datasets_ids=[d.pk for d in self.datasets.all()],
             basis_of_record_ids=[b.pk for b in self.basis_of_record_filters.all()],
-            areas_ids=[a.pk for a in self.areas.all()],
+            areas_ids=list(area_buffers.keys()),
             start_date=None,
             end_date=None,
             initial_data_import_ids=[],
             status_for_user=None,
             user=self.user,
             verified_filter=self.verified_filter,
-            area_buffer_meters=self.area_buffer_meters,
+            area_buffers=area_buffers,
         )
 
     def unseen_observations(self) -> QuerySet[Observation]:
         """Return all unseen observations matching this alert"""
+        area_buffers = self._area_buffers
         return Observation.objects.filtered_from_my_params(
             species_ids=[s.pk for s in self.species.all()],
             datasets_ids=[d.pk for d in self.datasets.all()],
             basis_of_record_ids=[b.pk for b in self.basis_of_record_filters.all()],
-            areas_ids=[a.pk for a in self.areas.all()],
+            areas_ids=list(area_buffers.keys()),
             start_date=None,
             end_date=None,
             initial_data_import_ids=[],
             status_for_user="unseen",
             user=self.user,
             verified_filter=self.verified_filter,
-            area_buffer_meters=self.area_buffer_meters,
+            area_buffers=area_buffers,
         )
 
     def unseen_observations_sample(self, sample_size=10) -> QuerySet[Observation]:
@@ -1224,3 +1286,24 @@ class Alert(models.Model):
         self.last_email_sent_on = timezone.now()
         self.save(update_fields=["last_email_sent_on"])
         return True
+
+
+class AlertArea(models.Model):
+    """Through model for Alert.areas, storing a per-area buffer distance."""
+
+    alert = models.ForeignKey(Alert, on_delete=models.CASCADE)
+    area = models.ForeignKey(Area, on_delete=models.CASCADE)
+    buffer_meters = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("buffer (meters)"),
+        help_text=_(
+            "Also include observations within this distance from this area. "
+            "0 = strict containment."
+        ),
+    )
+
+    class Meta:
+        unique_together = [("alert", "area")]
+
+    def __str__(self) -> str:
+        return f"{self.alert} — {self.area} (buffer: {self.buffer_meters}m)"
