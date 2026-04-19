@@ -69,56 +69,60 @@ class ObservationAdmin(admin.OSMGeoAdmin):
 
 
 class SpeciesResource(resources.ModelResource):
-    """Import/export resource for Species.
-
-    Accepts Excel files with camelCase column names (scientificName,
-    gbifTaxonKey, vernacularNameEn/Fr/Nl, tags) as well as the default
-    snake_case model field names.
-    Tags are imported from a comma-separated string in a ``tags`` column.
-    """
-
-    # Skip columns present in the file but not needed for import
-    file_id = resources.Field(column_name="id", attribute=None)
-    file_vernacular_name = resources.Field(
-        column_name="vernacularName", attribute=None
-    )
-    file_gbif_taxon_key_snake = resources.Field(
-        column_name="gbif_taxon_key", attribute=None
-    )
-    tags_field = resources.Field(column_name="tags", attribute=None)
-
-    # Actual field mappings
-    name = resources.Field(
-        column_name="scientificName", attribute="name"
-    )
-    gbif_taxon_key = resources.Field(
-        column_name="gbifTaxonKey", attribute="gbif_taxon_key"
-    )
-    vernacular_name_en = resources.Field(
-        column_name="vernacularNameEn", attribute="vernacular_name_en"
-    )
-    vernacular_name_fr = resources.Field(
-        column_name="vernacularNameFr", attribute="vernacular_name_fr"
-    )
-    vernacular_name_nl = resources.Field(
-        column_name="vernacularNameNl", attribute="vernacular_name_nl"
-    )
-
+    # Explicitly list fields so the auto-generated resource doesn't
+    # pick up 'tags' (TaggableManager) which can't be imported as a
+    # regular field.
     class Meta:
         model = Species
         import_id_fields = ("gbif_taxon_key",)
         exclude = ("id",)
+        fields = (
+            "name",
+            "gbif_taxon_key",
+            "vernacular_name",
+            "vernacular_name_en",
+            "vernacular_name_fr",
+            "vernacular_name_nl",
+        )
 
-    def before_import_row(self, row, **kwargs):
-        self._pending_tags = row.get("tags", "")
+    # camelCase → snake_case header mapping
+    COLUMN_MAP = {
+        "scientificName": "name",
+        "gbifTaxonKey": "gbif_taxon_key",
+        "vernacularName": "vernacular_name",
+        "vernacularNameEn": "vernacular_name_en",
+        "vernacularNameFr": "vernacular_name_fr",
+        "vernacularNameNl": "vernacular_name_nl",
+    }
 
-    def after_save_instance(self, instance, using_transactions, dry_run):
-        if dry_run:
-            return
-        tags_str = getattr(self, "_pending_tags", "")
-        if tags_str:
-            tag_list = [t.strip() for t in str(tags_str).split(",") if t.strip()]
-            instance.tags.set(*tag_list, clear=True)
+    def before_import(self, dataset, using_transactions, dry_run, **kwargs):
+        import tablib  # type: ignore
+
+        # Rename camelCase headers to snake_case model field names
+        new_headers = [
+            self.COLUMN_MAP.get(h, h) for h in dataset.headers
+        ]
+        # Keep only columns that are in our explicit fields list,
+        # and skip duplicates. Work by index to avoid issues with
+        # tablib's del-by-name on duplicate headers.
+        allowed = set(self.Meta.fields)
+        seen = set()
+        keep_indices = []
+        keep_headers = []
+        for i, header in enumerate(new_headers):
+            if header in allowed and header not in seen:
+                keep_indices.append(i)
+                keep_headers.append(header)
+                seen.add(header)
+
+        # Build a new dataset with only the kept columns
+        new_data = []
+        for row in dataset:
+            new_data.append(tuple(row[i] for i in keep_indices))
+        dataset.wipe()
+        dataset.headers = keep_headers
+        for row in new_data:
+            dataset.append(row)
 
 
 @admin.register(Species)
